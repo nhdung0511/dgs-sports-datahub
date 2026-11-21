@@ -5,6 +5,7 @@ import { btnPrimary } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { fetchGameEvents } from "@/lib/db/events";
 import { fetchGame, fetchRoster } from "@/lib/db/games";
+import { canEdit, getMyTeam } from "@/lib/db/teams";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { Scorer } from "./scorer";
 
@@ -15,8 +16,9 @@ export default async function ScorePage({ params }: { params: Promise<{ id: stri
   const game = await fetchGame(supabase, id);
   if (!game) notFound();
 
-  // One scorekeeper per game: everyone else gets the live view.
-  if (game.scorekeeperId !== user.id) {
+  // One scorekeeper per game, and only while they're an editor: everyone else gets the live view.
+  const member = await getMyTeam(supabase, user.id);
+  if (game.scorekeeperId !== user.id || !canEdit(member?.role)) {
     return (
       <SiteShell>
         <div className="mx-auto max-w-lg rounded-2xl border border-line bg-card p-6 text-center">

@@ -74,4 +74,22 @@ describe("computeBoxScore", () => {
     expect(box.foulsByPeriod.opp).toEqual([1, 1]);
     expect(box.players.c.pf).toBe(1);
   });
+
+  it("totals team-level stats for both sides, including opponent misses, rebounds and turnovers", () => {
+    const box = computeBoxScore([
+      ev({ type: "period_start", payload: { lineup } }),
+      ev({ type: "shot", playerId: "a", payload: { points: 3, made: false } }),
+      ev({ type: "rebound", side: "opp", payload: { offensive: false } }),
+      ev({ type: "shot", side: "opp", payload: { points: 2, made: false } }),
+      ev({ type: "rebound", side: "opp", payload: { offensive: true } }),
+      ev({ type: "shot", side: "opp", payload: { points: 3, made: true } }),
+      ev({ type: "shot", side: "opp", payload: { points: 1, made: false } }),
+      ev({ type: "turnover", side: "opp", payload: {} }),
+      ev({ type: "steal", playerId: "b", payload: {} }),
+      ev({ type: "turnover", playerId: "c", payload: {} }),
+    ]);
+    expect(box.team.opp).toMatchObject({ fga: 2, fgm: 1, tpa: 1, tpm: 1, fta: 1, ftm: 0, oreb: 1, dreb: 1, tov: 1 });
+    expect(box.team.us).toMatchObject({ fga: 1, fgm: 0, tpa: 1, tov: 1 });
+    expect(box.score.opp).toBe(3);
+  });
 });

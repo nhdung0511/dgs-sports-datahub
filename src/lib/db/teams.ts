@@ -1,7 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Team } from "@/lib/sports/types";
 
-export type Role = "admin" | "scorekeeper";
+export type Role = "admin" | "scorekeeper" | "player";
+
+/** Admins and scorekeepers can change team data; players are view-only. */
+export const canEdit = (role: Role | null | undefined) => role === "admin" || role === "scorekeeper";
 
 export interface Member {
   userId: string;

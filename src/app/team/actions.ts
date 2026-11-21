@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { getMyTeam } from "@/lib/db/teams";
+import { canEdit, getMyTeam } from "@/lib/db/teams";
 
 const text = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -18,6 +18,15 @@ async function myTeam() {
   if (!team) done("Create your team first.", true);
   return { supabase, user, team };
 }
+
+/** Like myTeam(), but players (view-only) are turned away. */
+async function myEditableTeam() {
+  const ctx = await myTeam();
+  if (!canEdit(ctx.team.role)) done("Players have view-only access.", true);
+  return ctx;
+}
+
+const ROLE_LABEL = { admin: "an admin", scorekeeper: "a scorekeeper", player: "a player (view-only)" } as const;
 
 export async function createTeam(form: FormData) {
   const { supabase, user } = await requireUser("/team");
@@ -39,7 +48,7 @@ export async function renameTeam(form: FormData) {
 }
 
 export async function addPlayer(form: FormData) {
-  const { supabase, team } = await myTeam();
+  const { supabase, team } = await myEditableTeam();
   const name = text(form, "name");
   const jersey = text(form, "jersey") || null;
   if (!name) done("Enter the player's name.", true);
@@ -49,7 +58,7 @@ export async function addPlayer(form: FormData) {
 }
 
 export async function updatePlayer(form: FormData) {
-  const { supabase, team } = await myTeam();
+  const { supabase, team } = await myEditableTeam();
   const id = text(form, "id");
   const name = text(form, "name");
   if (!name) done("Player name can't be empty.", true);
@@ -63,7 +72,7 @@ export async function updatePlayer(form: FormData) {
 }
 
 export async function setPlayerActive(form: FormData) {
-  const { supabase, team } = await myTeam();
+  const { supabase, team } = await myEditableTeam();
   const active = text(form, "active") === "true";
   const { error } = await supabase
     .from("players")
@@ -77,7 +86,8 @@ export async function setPlayerActive(form: FormData) {
 export async function addMember(form: FormData) {
   const { supabase, team } = await myTeam();
   const email = text(form, "email");
-  const role = text(form, "role") === "admin" ? "admin" : "scorekeeper";
+  const picked = text(form, "role");
+  const role = picked === "admin" || picked === "player" ? picked : "scorekeeper";
   if (!email) done("Enter an email address.", true);
   const { error } = await supabase.rpc("add_team_member_by_email", {
     p_team: team.id,
@@ -85,7 +95,7 @@ export async function addMember(form: FormData) {
     p_role: role,
   });
   if (error) done(error.message, true);
-  done(`${email} can now keep score for ${team.name}.`);
+  done(`${email} is now ${ROLE_LABEL[role]} on ${team.name}.`);
 }
 
 export async function deleteContactMessage(form: FormData) {

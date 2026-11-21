@@ -2,7 +2,7 @@ import { Notice, PageTitle, SiteShell } from "@/components/site-shell";
 import { btnAccent, btnGhost, btnPrimary, card, input, label } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { fetchRoster } from "@/lib/db/games";
-import { getMyTeam, listMembers } from "@/lib/db/teams";
+import { canEdit, getMyTeam, listMembers } from "@/lib/db/teams";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { listContactMessages } from "@/lib/db/contact";
 import {
@@ -45,6 +45,7 @@ export default async function TeamPage({
   }
 
   const isAdmin = team.role === "admin";
+  const editor = canEdit(team.role);
   const [players, members, messages] = await Promise.all([
     fetchRoster(supabase, team.id, { includeInactive: true }),
     listMembers(supabase, team.id),
@@ -57,11 +58,28 @@ export default async function TeamPage({
     <SiteShell>
       <PageTitle
         title={team.name}
-        sub={`${active.length} active players · you are ${isAdmin ? "an admin" : "a scorekeeper"}`}
+        sub={`${active.length} active players · you are ${
+          isAdmin ? "an admin" : editor ? "a scorekeeper" : "a player (view-only)"
+        }`}
       />
       <Notice msg={msg} />
       <Notice msg={error} tone="error" />
 
+      {!editor && (
+        <section className={`${card} p-5 sm:p-6`}>
+          <h2 className="text-xl font-black">Roster</h2>
+          <ul className="mt-4 divide-y divide-line">
+            {active.length === 0 && <li className="py-4 text-sm text-muted">No players yet.</li>}
+            {active.map((p) => (
+              <li key={p.id} className="py-2.5">
+                <b className="inline-block w-12">#{p.jersey ?? "–"}</b> {p.name}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {editor && (
       <section className={`${card} p-5 sm:p-6`}>
         <h2 className="text-xl font-black">Roster</h2>
         <p className="mt-1 text-sm text-muted">
@@ -137,11 +155,14 @@ export default async function TeamPage({
           </details>
         )}
       </section>
+      )}
 
       <section className={`${card} mt-6 p-5 sm:p-6`}>
-        <h2 className="text-xl font-black">Scorekeepers</h2>
+        <h2 className="text-xl font-black">Members</h2>
         <p className="mt-1 text-sm text-muted">
-          People who can create games and keep score. They need to sign in once before you can add them.
+          Admins and scorekeepers can create games and keep score. Players can sign in to see the team&apos;s
+          analysis but can&apos;t change anything. Each person needs an account first: create it in Supabase or have
+          them sign in once.
         </p>
         <ul className="mt-4 divide-y divide-line">
           {members.map((m) => (
@@ -153,7 +174,11 @@ export default async function TeamPage({
               <span className="flex items-center gap-3">
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                    m.role === "admin" ? "bg-lime-soft ring-1 ring-lime/50" : "bg-cyan-soft ring-1 ring-cyan/40"
+                    m.role === "admin"
+                      ? "bg-lime-soft ring-1 ring-lime/50"
+                      : m.role === "player"
+                        ? "bg-card-2 ring-1 ring-line"
+                        : "bg-cyan-soft ring-1 ring-cyan/40"
                   }`}
                 >
                   {m.role}
@@ -184,6 +209,7 @@ export default async function TeamPage({
               </label>
               <select id="member-role" name="role" className={input} defaultValue="scorekeeper">
                 <option value="scorekeeper">Scorekeeper</option>
+                <option value="player">Player (view-only)</option>
                 <option value="admin">Admin</option>
               </select>
             </div>

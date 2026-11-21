@@ -3,7 +3,7 @@ import { Notice, PageTitle, SiteShell } from "@/components/site-shell";
 import { btnPrimary } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { fetchRoster } from "@/lib/db/games";
-import { getMyTeam } from "@/lib/db/teams";
+import { canEdit, getMyTeam } from "@/lib/db/teams";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { GameForm } from "./game-form";
 
@@ -11,7 +11,9 @@ export default async function NewGamePage({ searchParams }: { searchParams: Prom
   if (!isSupabaseConfigured) return <SiteShell>{null}</SiteShell>;
   const { error } = await searchParams;
   const { supabase, user } = await requireUser("/games/new");
-  const team = await getMyTeam(supabase, user.id);
+  const myTeam = await getMyTeam(supabase, user.id);
+  // Players are view-only, so they can't create games.
+  const team = myTeam && canEdit(myTeam.role) ? myTeam : null;
   const roster = team ? await fetchRoster(supabase, team.id) : [];
 
   return (

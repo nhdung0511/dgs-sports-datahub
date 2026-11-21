@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { getMyTeam } from "@/lib/db/teams";
+import { canEdit, getMyTeam } from "@/lib/db/teams";
 
 function back(param: string, value: string): never {
   // Box scores, season totals and the home page all read from games.
@@ -19,7 +19,7 @@ export async function deleteGame(form: FormData) {
   const id = String(form.get("id") ?? "");
   const { supabase, user } = await requireUser("/games");
   const team = await getMyTeam(supabase, user.id);
-  if (!team) back("error", "Only team members can delete games.");
+  if (!team || !canEdit(team.role)) back("error", "Only admins and scorekeepers can delete games.");
 
   const { data: game } = await supabase
     .from("games")

@@ -4,7 +4,7 @@ import { PageTitle, SiteShell } from "@/components/site-shell";
 import { btnAccent } from "@/components/ui";
 import { getSessionUser } from "@/lib/auth";
 import { listGames, loadGamesWithBox } from "@/lib/db/games";
-import { getClubTeam, getMyTeam } from "@/lib/db/teams";
+import { canEdit, getClubTeam, getMyTeam } from "@/lib/db/teams";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export default async function GamesPage({
@@ -16,7 +16,9 @@ export default async function GamesPage({
   if (!isSupabaseConfigured) return <SiteShell>{null}</SiteShell>;
   const { supabase, user } = await getSessionUser();
   const team = await getClubTeam(supabase, user?.id);
-  const mine = user ? await getMyTeam(supabase, user.id) : null;
+  const member = user ? await getMyTeam(supabase, user.id) : null;
+  // Only admins and scorekeepers can create, score or delete games (players are view-only).
+  const mine = member && canEdit(member.role) ? member : null;
   const games = team ? await loadGamesWithBox(supabase, await listGames(supabase, team.id)) : [];
 
   return (

@@ -6,7 +6,7 @@ import { btnPrimary, card, input, label } from "@/components/ui";
 import { getSessionUser } from "@/lib/auth";
 import { fetchRoster, listGames, loadGamesWithBox, type GameWithBox } from "@/lib/db/games";
 import { listNewsPosts, resultNews, type NewsItem } from "@/lib/db/news";
-import { getClubTeam, getMyTeam, type Role } from "@/lib/db/teams";
+import { canEdit, getClubTeam, getMyTeam, type Role } from "@/lib/db/teams";
 import type { Team } from "@/lib/sports/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createNewsPost, deleteNewsPost, sendContactMessage } from "./home-actions";
@@ -44,6 +44,7 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
 
   const liveGame = recent.find((g) => g.game.status === "live");
   const isAdmin = myTeam?.role === "admin";
+  const isEditor = canEdit(myTeam?.role);
   const photo = heroPhotoSrc();
 
   return (
@@ -105,11 +106,11 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
               {recent.length === 0 ? (
                 <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-muted">
                   No games yet.{" "}
-                  {myTeam ? (
+                  {isEditor ? (
                     <Link href="/games/new" className="font-bold text-cyan underline">
                       Start the first one
                     </Link>
-                  ) : signedIn ? (
+                  ) : signedIn && !myTeam ? (
                     <Link href="/team" className="font-bold text-cyan underline">
                       Set up your team
                     </Link>
@@ -120,7 +121,7 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
               ) : (
                 <ul className="grid gap-3 md:grid-cols-2">
                   {recent.map((g) => (
-                    <GameCard key={g.game.id} item={g} canScore={Boolean(myTeam && g.game.scorekeeperId === userId)} />
+                    <GameCard key={g.game.id} item={g} canScore={Boolean(isEditor && g.game.scorekeeperId === userId)} />
                   ))}
                 </ul>
               )}

@@ -2,13 +2,13 @@
 
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { getMyTeam } from "@/lib/db/teams";
+import { canEdit, getMyTeam } from "@/lib/db/teams";
 import type { BasketballConfig } from "@/lib/sports/basketball/events";
 
 export async function createGame(form: FormData) {
   const { supabase, user } = await requireUser("/games/new");
   const team = await getMyTeam(supabase, user.id);
-  if (!team) redirect("/team");
+  if (!team || !canEdit(team.role)) redirect("/team");
 
   const opponent = String(form.get("opponent") ?? "").trim();
   const int = (k: string, min: number, max: number) => {
@@ -19,6 +19,7 @@ export async function createGame(form: FormData) {
     periodCount: int("periodCount", 1, 8),
     periodLengthSec: int("periodMinutes", 1, 30) * 60,
     overtimeLengthSec: int("overtimeMinutes", 1, 15) * 60,
+    opponentStats: true,
   };
   const startsAt = String(form.get("startsAtIso") ?? "") || new Date().toISOString();
 

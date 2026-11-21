@@ -57,6 +57,26 @@ const OTHER: PlayerAction[] = [
 const PLAYER_ACTIONS = [...SHOTS, ...OTHER];
 const OPP_KEYS: Record<string, 1 | 2 | 3> = { j: 1, k: 2, l: 3 };
 
+/** Opponent team-level stats (no opponent players): misses, rebounds, turnovers, fouls. */
+interface OppAction {
+  key: string;
+  label: string;
+  type: BasketballEventType;
+  payload: object;
+}
+const OPP_MISSES: OppAction[] = [
+  { key: "m", label: "FT miss", type: "shot", payload: { points: 1, made: false } },
+  { key: ",", label: "2 miss", type: "shot", payload: { points: 2, made: false } },
+  { key: ".", label: "3 miss", type: "shot", payload: { points: 3, made: false } },
+];
+const OPP_OTHER: OppAction[] = [
+  { key: "g", label: "Off. reb", type: "rebound", payload: { offensive: true } },
+  { key: "h", label: "Def. reb", type: "rebound", payload: { offensive: false } },
+  { key: "v", label: "Turnover", type: "turnover", payload: {} },
+  { key: "p", label: "Foul", type: "foul", payload: {} },
+];
+const OPP_ACTIONS = [...OPP_MISSES, ...OPP_OTHER];
+
 const toneClass: Record<PlayerAction["tone"], string> = {
   made: "bg-brand text-brand-fg hover:bg-brand-hover shadow-sm",
   miss: "border-2 border-line bg-card text-fg hover:border-muted",
@@ -179,6 +199,11 @@ export function Scorer({ game, players, initialEvents }: Props) {
     announce(s.record("shot", { points, made: true }, { side: "opp" }));
   }
 
+  function oppAction(a: OppAction) {
+    if (!s.inPeriod) return;
+    announce(s.record(a.type, a.payload as never, { side: "opp" }));
+  }
+
   function tapCourt(id: string) {
     if (!s.inPeriod) return toggleLineup(id);
     setSelected((cur) => (cur === id ? null : id));
@@ -230,7 +255,7 @@ export function Scorer({ game, players, initialEvents }: Props) {
         const id = onCourt[Number(k) - 1];
         if (id) setSelected((cur) => (cur === id ? null : id));
       } else if (k in OPP_KEYS) oppScore(OPP_KEYS[k]);
-      else if (k === "p" && s.inPeriod) announce(s.record("foul", {}, { side: "opp" }));
+      else if (OPP_ACTIONS.some((x) => x.key === k)) oppAction(OPP_ACTIONS.find((x) => x.key === k)!);
       else {
         const a = PLAYER_ACTIONS.find((x) => x.key === k);
         if (a) playerAction(a);
@@ -470,10 +495,8 @@ export function Scorer({ game, players, initialEvents }: Props) {
           </div>
 
           <div className="rounded-2xl border border-opp/30 bg-opp-soft/60 p-3">
-            <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-opp">
-              {game.opponentName} scored / fouled
-            </h2>
-            <div className="grid grid-cols-4 gap-2">
+            <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-opp">{game.opponentName}</h2>
+            <div className="grid grid-cols-3 gap-2">
               {([1, 2, 3] as const).map((pts, i) => (
                 <button
                   key={pts}
@@ -485,14 +508,34 @@ export function Scorer({ game, players, initialEvents }: Props) {
                   <Kbd k={"jkl"[i]} />
                 </button>
               ))}
-              <button
-                onClick={() => announce(s.record("foul", {}, { side: "opp" }))}
-                disabled={disabled}
-                className="rounded-xl bg-warn-soft px-2 py-3 font-bold text-fg ring-1 ring-inset ring-warn/50 disabled:opacity-35"
-              >
-                Foul
-                <Kbd k="p" />
-              </button>
+              {OPP_MISSES.map((a) => (
+                <button
+                  key={a.key}
+                  onClick={() => oppAction(a)}
+                  disabled={disabled}
+                  className="rounded-xl border-2 border-opp/40 bg-card px-2 py-2.5 text-sm font-bold text-fg hover:border-opp disabled:opacity-35"
+                >
+                  {a.label}
+                  <Kbd k={a.key} />
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 grid grid-cols-4 gap-2">
+              {OPP_OTHER.map((a) => (
+                <button
+                  key={a.key}
+                  onClick={() => oppAction(a)}
+                  disabled={disabled}
+                  className={`rounded-xl px-1 py-2.5 text-xs font-bold text-fg ring-1 ring-inset disabled:opacity-35 sm:text-sm ${
+                    a.type === "foul" || a.type === "turnover"
+                      ? "bg-warn-soft ring-warn/50"
+                      : "bg-card ring-line hover:ring-muted"
+                  }`}
+                >
+                  {a.label}
+                  <Kbd k={a.key} />
+                </button>
+              ))}
             </div>
           </div>
 
@@ -513,8 +556,9 @@ export function Scorer({ game, players, initialEvents }: Props) {
             </button>
           </div>
           <p className="hidden text-xs text-muted lg:block">
-            Keyboard: 1–5 pick a player · letter keys record · J / K / L opponent +1 / +2 / +3 · P
-            opponent foul · Space clock · Esc cancel · Ctrl+Z undo
+            Keyboard: 1–5 pick a player · letter keys record · Opponent: J / K / L +1 / +2 / +3 · M / , / .
+            missed FT / 2 / 3 · G / H off. / def. rebound · V turnover · P foul · Space clock · Esc cancel ·
+            Ctrl+Z undo
           </p>
         </section>
 

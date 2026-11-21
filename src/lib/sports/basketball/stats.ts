@@ -31,7 +31,29 @@ export interface BoxScore {
   onCourt: string[];
   /** Five-player units, keyed by sorted player ids joined with "|". */
   lineups: Record<string, LineupLine>;
+  /**
+   * Team totals per side, including plays with no player (all opponent plays are team-level).
+   * Opponent misses/rebounds/turnovers only exist for games with config.opponentStats.
+   */
+  team: Record<Side, TeamLine>;
 }
+
+export interface TeamLine {
+  fgm: number;
+  fga: number;
+  tpm: number;
+  tpa: number;
+  ftm: number;
+  fta: number;
+  oreb: number;
+  dreb: number;
+  tov: number;
+  pf: number;
+}
+
+export const emptyTeamLine = (): TeamLine => ({
+  fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, oreb: 0, dreb: 0, tov: 0, pf: 0,
+});
 
 export interface LineupLine {
   players: string[];
@@ -67,6 +89,7 @@ export function computeBoxScore(events: readonly BasketballEvent[]): BoxScore {
     players: {},
     onCourt: [],
     lineups: {},
+    team: { us: emptyTeamLine(), opp: emptyTeamLine() },
   };
   const line = (id: string) => (box.players[id] ??= emptyLine());
   const unit = () => {
@@ -95,6 +118,36 @@ export function computeBoxScore(events: readonly BasketballEvent[]): BoxScore {
     if (ev.period === period || ev.type === "period_start") lastClockMs = ev.clockMs;
 
     const mine = ev.side === "us" && ev.playerId ? line(ev.playerId) : null;
+    const side = box.team[ev.side];
+
+    // Team totals: every shot/rebound/turnover/foul, with or without a player.
+    switch (ev.type) {
+      case "shot": {
+        const { points, made } = ev.payload;
+        if (points === 1) {
+          side.fta++;
+          if (made) side.ftm++;
+        } else {
+          side.fga++;
+          if (made) side.fgm++;
+          if (points === 3) {
+            side.tpa++;
+            if (made) side.tpm++;
+          }
+        }
+        break;
+      }
+      case "rebound":
+        if (ev.payload.offensive) side.oreb++;
+        else side.dreb++;
+        break;
+      case "turnover":
+        side.tov++;
+        break;
+      case "foul":
+        side.pf++;
+        break;
+    }
 
     switch (ev.type) {
       case "period_start":

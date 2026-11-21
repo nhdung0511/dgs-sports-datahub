@@ -4,6 +4,11 @@ export interface BasketballConfig {
   periodCount: number; // 4 quarters or 2 halves
   periodLengthSec: number;
   overtimeLengthSec: number;
+  /**
+   * True when the scorer recorded opponent misses, rebounds and turnovers (games created after
+   * that was added). Possession-based stats (pace, ratings, rebound %) only use these games.
+   */
+  opponentStats?: boolean;
 }
 
 export const FIBA_CONFIG: BasketballConfig = {
