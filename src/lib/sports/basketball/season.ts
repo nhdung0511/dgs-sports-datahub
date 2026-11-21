@@ -1,6 +1,6 @@
 import type { Game } from "../types";
 import type { BasketballConfig } from "./events";
-import { emptyLine, type BoxScore, type LineupLine, type PlayerLine } from "./stats";
+import { addTeamLine, emptyLine, emptyTeamLine, type BoxScore, type LineupLine, type PlayerLine } from "./stats";
 
 export interface SeasonLine extends PlayerLine {
   gp: number;
@@ -104,10 +104,18 @@ export function seasonLineups(boxes: readonly BoxScore[], minSeconds = 120): Sea
   for (const b of boxes) {
     for (const [key, l] of Object.entries(b.lineups)) {
       if (l.players.length !== 5) continue;
-      const a = acc.get(key) ?? { players: l.players, seconds: 0, pointsFor: 0, pointsAgainst: 0 };
+      const a = acc.get(key) ?? {
+        players: l.players,
+        seconds: 0,
+        pointsFor: 0,
+        pointsAgainst: 0,
+        team: { us: emptyTeamLine(), opp: emptyTeamLine() },
+      };
       a.seconds += l.seconds;
       a.pointsFor += l.pointsFor;
       a.pointsAgainst += l.pointsAgainst;
+      addTeamLine(a.team.us, l.team.us);
+      addTeamLine(a.team.opp, l.team.opp);
       acc.set(key, a);
     }
   }

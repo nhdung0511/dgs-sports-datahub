@@ -36,6 +36,17 @@ export interface BoxScore {
    * Opponent misses/rebounds/turnovers only exist for games with config.opponentStats.
    */
   team: Record<Side, TeamLine>;
+  /**
+   * Per player: what both teams did while that player was on court. Basis for usage %,
+   * assist %, rebound %, steal/block % and on/off ratings.
+   */
+  onCourtTeam: Record<string, OnCourtLine>;
+}
+
+export interface OnCourtLine {
+  team: Record<Side, TeamLine>;
+  pointsFor: number;
+  pointsAgainst: number;
 }
 
 export interface TeamLine {
@@ -55,11 +66,58 @@ export const emptyTeamLine = (): TeamLine => ({
   fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, oreb: 0, dreb: 0, tov: 0, pf: 0,
 });
 
+export const emptyOnCourtLine = (): OnCourtLine => ({
+  team: { us: emptyTeamLine(), opp: emptyTeamLine() },
+  pointsFor: 0,
+  pointsAgainst: 0,
+});
+
+export const TEAM_LINE_KEYS = Object.keys(emptyTeamLine()) as (keyof TeamLine)[];
+
+/** Adds b into a, key by key. */
+export function addTeamLine(a: TeamLine, b: TeamLine): TeamLine {
+  for (const k of TEAM_LINE_KEYS) a[k] += b[k];
+  return a;
+}
+
 export interface LineupLine {
   players: string[];
   seconds: number;
   pointsFor: number;
   pointsAgainst: number;
+  /** Both teams' totals while this unit was on court (for lineup net rating). */
+  team: Record<Side, TeamLine>;
+}
+
+/** Counts one shot/rebound/turnover/foul into a team line; other events are ignored. */
+function countTeamPlay(t: TeamLine, ev: BasketballEvent) {
+  switch (ev.type) {
+    case "shot": {
+      const { points, made } = ev.payload;
+      if (points === 1) {
+        t.fta++;
+        if (made) t.ftm++;
+      } else {
+        t.fga++;
+        if (made) t.fgm++;
+        if (points === 3) {
+          t.tpa++;
+          if (made) t.tpm++;
+        }
+      }
+      break;
+    }
+    case "rebound":
+      if (ev.payload.offensive) t.oreb++;
+      else t.dreb++;
+      break;
+    case "turnover":
+      t.tov++;
+      break;
+    case "foul":
+      t.pf++;
+      break;
+  }
 }
 
 export const lineupKey = (ids: Iterable<string>) => [...ids].sort().join("|");
@@ -90,8 +148,10 @@ export function computeBoxScore(events: readonly BasketballEvent[]): BoxScore {
     onCourt: [],
     lineups: {},
     team: { us: emptyTeamLine(), opp: emptyTeamLine() },
+    onCourtTeam: {},
   };
   const line = (id: string) => (box.players[id] ??= emptyLine());
+  const onLine = (id: string) => (box.onCourtTeam[id] ??= emptyOnCourtLine());
   const unit = () => {
     const key = lineupKey(onCourt);
     return (box.lineups[key] ??= {
@@ -99,6 +159,7 @@ export function computeBoxScore(events: readonly BasketballEvent[]): BoxScore {
       seconds: 0,
       pointsFor: 0,
       pointsAgainst: 0,
+      team: { us: emptyTeamLine(), opp: emptyTeamLine() },
     });
   };
 
@@ -118,35 +179,13 @@ export function computeBoxScore(events: readonly BasketballEvent[]): BoxScore {
     if (ev.period === period || ev.type === "period_start") lastClockMs = ev.clockMs;
 
     const mine = ev.side === "us" && ev.playerId ? line(ev.playerId) : null;
-    const side = box.team[ev.side];
 
-    // Team totals: every shot/rebound/turnover/foul, with or without a player.
-    switch (ev.type) {
-      case "shot": {
-        const { points, made } = ev.payload;
-        if (points === 1) {
-          side.fta++;
-          if (made) side.ftm++;
-        } else {
-          side.fga++;
-          if (made) side.fgm++;
-          if (points === 3) {
-            side.tpa++;
-            if (made) side.tpm++;
-          }
-        }
-        break;
-      }
-      case "rebound":
-        if (ev.payload.offensive) side.oreb++;
-        else side.dreb++;
-        break;
-      case "turnover":
-        side.tov++;
-        break;
-      case "foul":
-        side.pf++;
-        break;
+    // Team totals (every play, with or without a player), and the same play credited to the
+    // on-court context of each of our five and of the current lineup.
+    countTeamPlay(box.team[ev.side], ev);
+    if (onCourt.size > 0 && ev.type !== "sub" && ev.type !== "period_start") {
+      for (const id of onCourt) countTeamPlay(onLine(id).team[ev.side], ev);
+      countTeamPlay(unit().team[ev.side], ev);
     }
 
     switch (ev.type) {
@@ -183,7 +222,11 @@ export function computeBoxScore(events: readonly BasketballEvent[]): BoxScore {
           box.score[ev.side] += points;
           bump(box.scoreByPeriod[ev.side], ev.period, points);
           const sign = ev.side === "us" ? 1 : -1;
-          for (const id of onCourt) line(id).plusMinus += sign * points;
+          for (const id of onCourt) {
+            line(id).plusMinus += sign * points;
+            if (ev.side === "us") onLine(id).pointsFor += points;
+            else onLine(id).pointsAgainst += points;
+          }
           if (onCourt.size > 0) {
             if (ev.side === "us") unit().pointsFor += points;
             else unit().pointsAgainst += points;
