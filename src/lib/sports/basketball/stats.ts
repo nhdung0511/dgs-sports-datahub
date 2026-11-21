@@ -29,7 +29,18 @@ export interface BoxScore {
   foulsByPeriod: Record<Side, number[]>;
   players: Record<string, PlayerLine>;
   onCourt: string[];
+  /** Five-player units, keyed by sorted player ids joined with "|". */
+  lineups: Record<string, LineupLine>;
 }
+
+export interface LineupLine {
+  players: string[];
+  seconds: number;
+  pointsFor: number;
+  pointsAgainst: number;
+}
+
+export const lineupKey = (ids: Iterable<string>) => [...ids].sort().join("|");
 
 export function emptyLine(): PlayerLine {
   return {
@@ -55,8 +66,18 @@ export function computeBoxScore(events: readonly BasketballEvent[]): BoxScore {
     foulsByPeriod: { us: [], opp: [] },
     players: {},
     onCourt: [],
+    lineups: {},
   };
   const line = (id: string) => (box.players[id] ??= emptyLine());
+  const unit = () => {
+    const key = lineupKey(onCourt);
+    return (box.lineups[key] ??= {
+      players: key.split("|"),
+      seconds: 0,
+      pointsFor: 0,
+      pointsAgainst: 0,
+    });
+  };
 
   let onCourt = new Set<string>();
   let lastClockMs: number | null = null;
@@ -66,7 +87,10 @@ export function computeBoxScore(events: readonly BasketballEvent[]): BoxScore {
     // Credit floor time to whoever was on court since the previous event.
     if (lastClockMs !== null && ev.period === period) {
       const elapsed = lastClockMs - ev.clockMs;
-      if (elapsed > 0) for (const id of onCourt) line(id).secondsPlayed += elapsed / 1000;
+      if (elapsed > 0 && onCourt.size > 0) {
+        for (const id of onCourt) line(id).secondsPlayed += elapsed / 1000;
+        unit().seconds += elapsed / 1000;
+      }
     }
     if (ev.period === period || ev.type === "period_start") lastClockMs = ev.clockMs;
 
@@ -107,6 +131,10 @@ export function computeBoxScore(events: readonly BasketballEvent[]): BoxScore {
           bump(box.scoreByPeriod[ev.side], ev.period, points);
           const sign = ev.side === "us" ? 1 : -1;
           for (const id of onCourt) line(id).plusMinus += sign * points;
+          if (onCourt.size > 0) {
+            if (ev.side === "us") unit().pointsFor += points;
+            else unit().pointsAgainst += points;
+          }
         }
         break;
       }

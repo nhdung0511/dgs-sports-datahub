@@ -1,38 +1,289 @@
 import Link from "next/link";
+import { GameCard, formatDate } from "@/components/game-card";
+import { HeroPhoto, heroPhotoSrc } from "@/components/hero-photo";
+import { SetupNotice, SiteShell } from "@/components/site-shell";
+import { btnPrimary, card, input, label } from "@/components/ui";
+import { getSessionUser } from "@/lib/auth";
+import { fetchRoster, listGames, loadGamesWithBox, type GameWithBox } from "@/lib/db/games";
+import { listNewsPosts, resultNews, type NewsItem } from "@/lib/db/news";
+import { getClubTeam, getMyTeam, type Role } from "@/lib/db/teams";
+import type { Team } from "@/lib/sports/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createNewsPost, deleteNewsPost, sendContactMessage } from "./home-actions";
 
-const sections = [
-  { href: "/games/new", title: "New game", body: "Set opponent, format and starting lineup." },
-  { href: "/team", title: "Team & roster", body: "Your club team and saved players." },
-  { href: "/season", title: "Season stats", body: "Per-player totals and averages." },
-  { href: "/dashboard", title: "Dashboard", body: "Trends and charts across the season." },
-];
+type Search = Promise<{ contact?: string; contactError?: string; news?: string; newsError?: string }>;
 
-export default function Home() {
+export default async function Home({ searchParams }: { searchParams: Search }) {
+  const sp = await searchParams;
+  let myTeam: (Team & { role: Role }) | null = null;
+  let team: Team | null = null;
+  let recent: GameWithBox[] = [];
+  let news: NewsItem[] = [];
+  let userId: string | undefined;
+  let signedIn = false;
+
+  if (isSupabaseConfigured) {
+    const { supabase, user } = await getSessionUser();
+    signedIn = Boolean(user);
+    userId = user?.id;
+    myTeam = user ? await getMyTeam(supabase, user.id) : null;
+    team = myTeam ?? (await getClubTeam(supabase));
+    if (team) {
+      const [games, posts, roster] = await Promise.all([
+        listGames(supabase, team.id, { limit: 6 }),
+        listNewsPosts(supabase, team.id),
+        fetchRoster(supabase, team.id, { includeInactive: true }),
+      ]);
+      recent = await loadGamesWithBox(supabase, games);
+      const nameOf = (id: string) => roster.find((p) => p.id === id)?.name ?? "A teammate";
+      news = [...posts, ...resultNews(recent, nameOf, team.name)]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 6);
+    }
+  }
+
+  const liveGame = recent.find((g) => g.game.status === "live");
+  const isAdmin = myTeam?.role === "admin";
+  const photo = heroPhotoSrc();
+
   return (
-    <main className="mx-auto max-w-3xl p-6 sm:p-10">
-      <h1 className="text-3xl font-semibold">Courtside Tracker</h1>
-      <p className="mt-2 text-neutral-500">Live basketball scorekeeping and stats.</p>
+    <SiteShell needsDb={false} bare>
+      {/* HERO — always dark, like a stadium at night */}
+      <section className="relative overflow-hidden bg-[#04100d] text-white">
+        {/* Centered until a hero photo is added; then text left, photo right. */}
+        <div
+          className={`relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-8 lg:py-24 ${
+            photo ? "lg:grid-cols-[1.05fr_1fr]" : ""
+          }`}
+        >
+          <div className={photo ? "" : "flex flex-col items-center text-center"}>
+            <h1 className="text-5xl font-black uppercase leading-[0.95] tracking-tight text-lime-strong sm:text-6xl lg:text-7xl">
+              DGS
+              <br />
+              Athletics&apos;
+              <br />
+              Data.
+            </h1>
+            <p className="mt-8 max-w-md text-lg text-white/80">
+              Live scores, full box scores and season insights for every <b className="text-white">DGS</b> game,
+              recorded courtside by our club&apos;s scorekeepers.
+            </p>
+            <div className={`mt-9 flex flex-wrap gap-4 ${photo ? "" : "justify-center"}`}>
+              <Link
+                href={liveGame ? `/g/${liveGame.game.id}` : "/games"}
+                className="inline-flex items-center gap-3 rounded-md bg-cyan-strong px-8 py-4 text-lg font-black uppercase tracking-wide text-black transition hover:brightness-95"
+              >
+                {liveGame ? "Watch live now" : "See our games"} <span aria-hidden>→</span>
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center rounded-md border-2 border-white/30 px-6 py-4 text-lg font-bold uppercase tracking-wide transition hover:border-lime-strong hover:text-lime-strong"
+              >
+                Dashboard
+              </Link>
+            </div>
+          </div>
+          <HeroPhoto src={photo} />
+        </div>
+      </section>
 
-      {!isSupabaseConfigured && (
-        <p className="mt-6 rounded-md border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
-          Supabase isn&apos;t configured yet. Copy <code>.env.example</code> to{" "}
-          <code>.env.local</code> and add your project URL and key.
-        </p>
-      )}
+      <div className="mx-auto max-w-6xl space-y-20 px-4 py-16 sm:px-8">
+        {!isSupabaseConfigured ? (
+          <SetupNotice />
+        ) : (
+          <>
+            {/* GAMES */}
+            <section>
+              <SectionHead
+                eyebrow="Scores"
+                title="Recent games"
+                action={
+                  <Link href="/games" className="text-sm font-bold uppercase tracking-wide text-cyan hover:underline">
+                    All games →
+                  </Link>
+                }
+              />
+              {recent.length === 0 ? (
+                <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-muted">
+                  No games yet.{" "}
+                  {myTeam ? (
+                    <Link href="/games/new" className="font-bold text-cyan underline">
+                      Start the first one
+                    </Link>
+                  ) : signedIn ? (
+                    <Link href="/team" className="font-bold text-cyan underline">
+                      Set up your team
+                    </Link>
+                  ) : (
+                    "Check back on game day."
+                  )}
+                </p>
+              ) : (
+                <ul className="grid gap-3 md:grid-cols-2">
+                  {recent.map((g) => (
+                    <GameCard key={g.game.id} item={g} canScore={Boolean(myTeam && g.game.scorekeeperId === userId)} />
+                  ))}
+                </ul>
+              )}
+            </section>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        {sections.map((s) => (
-          <Link
-            key={s.href}
-            href={s.href}
-            className="rounded-lg border border-neutral-200 p-4 hover:border-neutral-400 dark:border-neutral-800"
-          >
-            <h2 className="font-medium">{s.title}</h2>
-            <p className="mt-1 text-sm text-neutral-500">{s.body}</p>
-          </Link>
-        ))}
+            {/* NEWS */}
+            <section id="news" className="scroll-mt-28">
+              <SectionHead eyebrow="Updates" title="Latest news" />
+              {sp.news && (
+                <p className="mb-4 rounded-xl bg-lime-soft px-4 py-3 text-sm font-medium ring-1 ring-lime/50">
+                  {sp.news === "posted" ? "Post published." : "Post deleted."}
+                </p>
+              )}
+              {sp.newsError && (
+                <p className="mb-4 rounded-xl bg-opp-soft px-4 py-3 text-sm font-medium ring-1 ring-opp/40">{sp.newsError}</p>
+              )}
+
+              {isAdmin && (
+                <details className={`${card} mb-6 p-5`}>
+                  <summary className="cursor-pointer font-bold">+ Write a news post</summary>
+                  <form action={createNewsPost} className="mt-4 space-y-3">
+                    <div>
+                      <label htmlFor="news-title" className={label}>
+                        Headline
+                      </label>
+                      <input id="news-title" name="title" required maxLength={140} className={input} />
+                    </div>
+                    <div>
+                      <label htmlFor="news-body" className={label}>
+                        Story
+                      </label>
+                      <textarea id="news-body" name="body" required rows={4} maxLength={4000} className={input} />
+                    </div>
+                    <button className={btnPrimary}>Publish</button>
+                  </form>
+                </details>
+              )}
+
+              {news.length === 0 ? (
+                <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-muted">
+                  No news yet. Results and club updates will show up here.
+                </p>
+              ) : (
+                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {news.map((n) => (
+                    <article
+                      key={n.id}
+                      className={`${card} flex flex-col overflow-hidden transition hover:border-cyan`}
+                    >
+                      <div className={`h-1.5 ${n.kind === "result" ? "bg-cyan-strong" : "bg-lime-strong"}`} />
+                      <div className="flex flex-1 flex-col p-5">
+                        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-muted">
+                          <span className={n.kind === "result" ? "text-cyan" : "text-lime"}>
+                            {n.kind === "result" ? "Game result" : "Club news"}
+                          </span>
+                          <span>{formatDate(n.date)}</span>
+                        </div>
+                        <h3 className="mt-2 text-lg font-black leading-snug">{n.title}</h3>
+                        <p className="mt-2 line-clamp-4 whitespace-pre-line text-sm text-muted">{n.body}</p>
+                        <div className="mt-auto flex items-center justify-between pt-4">
+                          {n.href ? (
+                            <Link href={n.href} className="text-sm font-bold uppercase tracking-wide text-cyan hover:underline">
+                              Box score →
+                            </Link>
+                          ) : (
+                            <span />
+                          )}
+                          {isAdmin && n.kind === "post" && (
+                            <form action={deleteNewsPost}>
+                              <input type="hidden" name="id" value={n.id} />
+                              <button className="text-xs font-medium text-muted hover:text-opp hover:underline">Delete</button>
+                            </form>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+
+        {/* ABOUT */}
+        <section id="about" className="scroll-mt-28">
+          <SectionHead title="About us" />
+          <div className="max-w-3xl">
+            <div className="space-y-4 text-lg text-muted">
+              <p>
+                <b className="text-fg">DGS Sports Data Analytics Club</b> is a student-run club that turns games into
+                data. Our scorekeepers sit courtside and log every basket, rebound, assist and substitution as it
+                happens.
+              </p>
+              <p>
+                Everything we record powers this site: live scoreboards for fans, full box scores for players and
+                coaches, and season trends for anyone curious about what actually wins games.
+              </p>
+              <p>We&apos;re starting with basketball and adding more sports next.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* CONTACT */}
+        <section id="contact" className="scroll-mt-28">
+          <SectionHead title="Contact us" />
+          <div className="max-w-3xl">
+            {sp.contact === "sent" ? (
+              <div className={`${card} p-8 text-center`}>
+                <p className="text-4xl text-lime">✓</p>
+                <h3 className="mt-2 text-xl font-black">Message sent</h3>
+                <p className="mt-1 text-muted">Thanks! We&apos;ll reply to the email you gave us.</p>
+              </div>
+            ) : (
+              <form action={sendContactMessage} className={`${card} space-y-4 p-6`}>
+                {sp.contactError && (
+                  <p className="rounded-xl bg-opp-soft px-4 py-3 text-sm font-medium ring-1 ring-opp/40">{sp.contactError}</p>
+                )}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="c-name" className={label}>
+                      Name
+                    </label>
+                    <input id="c-name" name="name" required maxLength={120} autoComplete="name" className={input} />
+                  </div>
+                  <div>
+                    <label htmlFor="c-email" className={label}>
+                      Email
+                    </label>
+                    <input id="c-email" name="email" type="email" required autoComplete="email" className={input} />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="c-message" className={label}>
+                    Message
+                  </label>
+                  <textarea id="c-message" name="message" required rows={5} maxLength={4000} className={input} />
+                </div>
+                {/* Spam trap, hidden from people. */}
+                <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
+                <button
+                  disabled={!isSupabaseConfigured}
+                  className="inline-flex items-center gap-2 rounded-md bg-lime-strong px-6 py-3 font-black uppercase tracking-wide text-black transition hover:brightness-95 disabled:opacity-50"
+                >
+                  Send message <span aria-hidden>→</span>
+                </button>
+              </form>
+            )}
+          </div>
+        </section>
       </div>
-    </main>
+    </SiteShell>
+  );
+}
+
+function SectionHead({ eyebrow, title, action }: { eyebrow?: string; title: string; action?: React.ReactNode }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        {eyebrow && <p className="text-sm font-bold uppercase tracking-[0.25em] text-cyan">{eyebrow}</p>}
+        <h2 className="mt-1 text-4xl font-black uppercase tracking-tight sm:text-5xl">{title}</h2>
+      </div>
+      {action}
+    </div>
   );
 }

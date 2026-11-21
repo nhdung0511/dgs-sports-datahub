@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
+/* Dark mode follows the .dark class on <html> (set by ThemeToggle / the head script). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Palette: #1a775f (brand green), #b2d762 (lime), #92dedb (aqua).
+ * --lime / --cyan are the text-safe shades; *-strong are the exact palette colours
+ * for fills, *-soft are tints for backgrounds.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f1f7f4;
+  --card: #ffffff;
+  --card-2: #e3efe9;
+  --fg: #0b2620;
+  --muted: #536d65;
+  --line: #cfe1d8;
+
+  --brand: #1a775f;
+  --brand-hover: #156450;
+  --brand-fg: #ffffff;
+
+  --lime: #557d18; /* darker for readable text on light backgrounds */
+  --lime-strong: #b2d762;
+  --lime-soft: #eef6d9;
+  --cyan: #237773; /* darker for readable text on light backgrounds */
+  --cyan-strong: #92dedb;
+  --cyan-soft: #e1f5f4;
+
+  --warn: #f59e0b;
+  --warn-soft: #fef3c7;
+  --opp: #be123c;
+  --opp-soft: #ffe4e6;
+
+  /* Chart series: validated for colour-blind separation on the light surface. */
+  --series-1: #0d7d5e;
+  --series-2: #7a9a10;
+
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #061411;
+  --card: #0b1f1a;
+  --card-2: #11302a;
+  --fg: #e3f3ee;
+  --muted: #8aa89f;
+  --line: #1c3d35;
+
+  --brand: #1a775f;
+  --brand-hover: #208b70;
+  --brand-fg: #ffffff;
+
+  --lime: #b2d762;
+  --lime-strong: #b2d762;
+  --lime-soft: #1f2d10;
+  --cyan: #92dedb;
+  --cyan-strong: #92dedb;
+  --cyan-soft: #0f3331;
+
+  --warn: #fbbf24;
+  --warn-soft: #3a2a06;
+  --opp: #fb7185;
+  --opp-soft: #3a0d18;
+
+  /* Validated separately against the dark card surface. */
+  --series-1: #0d7d5e;
+  --series-2: #7a9a10;
+
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-lime: var(--lime);
+  --color-lime-strong: var(--lime-strong);
+  --color-lime-soft: var(--lime-soft);
+  --color-cyan: var(--cyan);
+  --color-cyan-strong: var(--cyan-strong);
+  --color-cyan-soft: var(--cyan-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-opp: var(--opp);
+  --color-opp-soft: var(--opp-soft);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+
+  /* Satoshi everywhere, including numbers and key hints. */
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Satoshi", ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1; /* steady-width digits for scores and clocks */
 }

@@ -1,20 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { themeInitScript } from "@/components/theme-toggle";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Every page shows live data or depends on who's signed in, so never pre-render.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Courtside Tracker",
-  description: "Live scorekeeping and stats for the Sports Data Analytics Club",
+  title: "DGS Sports Datahub",
+  description: "Live scores, stats and news from the DGS Sports Data Analytics Club",
 };
 
 export default function RootLayout({
@@ -23,12 +16,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        {/* Satoshi is hosted on Fontshare (free for personal and commercial use). */}
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap"
+        />
+      </head>
+      <body className="min-h-screen antialiased">{children}</body>
     </html>
   );
 }
