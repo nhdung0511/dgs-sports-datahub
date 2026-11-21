@@ -7,7 +7,7 @@ Next.js (App Router) + Supabase (Postgres, Auth, Realtime), deployed on Vercel.
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. In the Supabase SQL Editor, run `supabase/migrations/0001_init.sql`, then
-   `0002_team_members.sql`, then `0003_news_contact.sql`.
+   `0002_team_members.sql`, then `0003_news_contact.sql`, then `0004_grants.sql`.
    In Authentication → URL Configuration, set the Site URL (e.g. `http://localhost:3000`)
    and add `http://localhost:3000/auth/callback` to the redirect URLs.
 3. Copy `.env.example` to `.env.local` and fill in the project URL and anon/publishable key

@@ -95,7 +95,6 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
             {/* GAMES */}
             <section>
               <SectionHead
-                eyebrow="Scores"
                 title="Recent games"
                 action={
                   <Link href="/games" className="text-sm font-bold uppercase tracking-wide text-cyan hover:underline">
@@ -129,7 +128,7 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
 
             {/* NEWS */}
             <section id="news" className="scroll-mt-28">
-              <SectionHead eyebrow="Updates" title="Latest news" />
+              <SectionHead title="Latest news" />
               {sp.news && (
                 <p className="mb-4 rounded-xl bg-lime-soft px-4 py-3 text-sm font-medium ring-1 ring-lime/50">
                   {sp.news === "posted" ? "Post published." : "Post deleted."}
@@ -211,15 +210,12 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
           <div className="max-w-3xl">
             <div className="space-y-4 text-lg text-muted">
               <p>
-                <b className="text-fg">DGS Sports Data Analytics Club</b> is a student-run club that turns games into
-                data. Our scorekeepers sit courtside and log every basket, rebound, assist and substitution as it
-                happens.
-              </p>
-              <p>
-                Everything we record powers this site: live scoreboards for fans, full box scores for players and
-                coaches, and season trends for anyone curious about what actually wins games.
+                Hi! We are Huy Dung and Viet Lam, two high
+                school students who are passionate about the statistical side of sports. We created this project in
+                order to make sports data more available for our school&apos;s sports team, the DGS Otters.
               </p>
               <p>We&apos;re starting with basketball and adding more sports next.</p>
+              <p className="font-bold text-fg">Go Otters!</p>
             </div>
           </div>
         </section>
@@ -276,13 +272,10 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
   );
 }
 
-function SectionHead({ eyebrow, title, action }: { eyebrow?: string; title: string; action?: React.ReactNode }) {
+function SectionHead({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        {eyebrow && <p className="text-sm font-bold uppercase tracking-[0.25em] text-cyan">{eyebrow}</p>}
-        <h2 className="mt-1 text-4xl font-black uppercase tracking-tight sm:text-5xl">{title}</h2>
-      </div>
+      <h2 className="text-4xl font-black uppercase tracking-tight sm:text-5xl">{title}</h2>
       {action}
     </div>
   );
