@@ -4,30 +4,36 @@ import { useMemo, useState } from "react";
 import { CsvButton } from "@/components/csv-button";
 import { UNIT_LABELS } from "@/lib/sports/basketball/advanced";
 import { formatMetric, GROUP_LABELS, METRICS, metricByKey, type MetricGroup } from "@/lib/sports/basketball/metrics";
-import { metricPercentiles, pctTint, shortName, type ViewProps } from "./shared";
+import { pctTint, shortName, type ViewProps } from "./shared";
 
 const GROUPS = Object.keys(GROUP_LABELS) as MetricGroup[];
 
 /** DataMB-style "Index": sortable table with percentile-coloured cells. */
-export function IndexView({ rows, unit, minMinutes }: ViewProps) {
+export function IndexView({ rows, unit, pcts, roles }: ViewProps) {
   const [group, setGroup] = useState<MetricGroup>("shooting");
-  const [sortKey, setSortKey] = useState<string>("gameScorePer32");
+  const [ratingMode, setRatingMode] = useState<"archetype" | "gamescore">("archetype");
+  const [sortKey, setSortKey] = useState<string>("rating");
   const [desc, setDesc] = useState(true);
 
   const cols = METRICS.filter((m) => m.group === group);
-  const rating = metricByKey("gameScorePer32")!;
-  const shown = group === "impact" ? cols : [...cols, rating];
-
-  // Percentiles for every metric once, so cells and sorting share them.
-  const pcts = useMemo(
-    () => Object.fromEntries(METRICS.map((m) => [m.key, metricPercentiles(rows, m, unit, minMinutes)])),
-    [rows, unit, minMinutes],
-  );
+  const gmsc = metricByKey("gameScorePer32")!;
+  // In Game Score mode GmSc/32 is the rating column, so don't repeat it among the Impact stats.
+  const shown = ratingMode === "gamescore" ? cols.filter((m) => m.key !== gmsc.key) : cols;
 
   const sorted = useMemo(() => {
     const m = metricByKey(sortKey);
     const val = (r: (typeof rows)[number]) =>
-      sortKey === "min" ? r.adv.minutes : sortKey === "name" ? 0 : m ? m.value(r.agg, r.adv, unit) : null;
+      sortKey === "rating"
+        ? ratingMode === "archetype"
+          ? roles[r.player.id]?.rating ?? null
+          : gmsc.value(r.agg, r.adv, unit)
+        : sortKey === "min"
+          ? r.adv.minutes
+          : sortKey === "name"
+            ? 0
+            : m
+              ? m.value(r.agg, r.adv, unit)
+              : null;
     return [...rows].sort((a, b) => {
       if (a.eligible !== b.eligible) return a.eligible ? -1 : 1; // low-minute players last
       if (sortKey === "name") return a.player.name.localeCompare(b.player.name) * (desc ? -1 : 1);
@@ -38,7 +44,7 @@ export function IndexView({ rows, unit, minMinutes }: ViewProps) {
       if (vb === null) return -1;
       return desc ? vb - va : va - vb;
     });
-  }, [rows, sortKey, desc, unit]);
+  }, [rows, sortKey, desc, unit, ratingMode, roles, gmsc]);
 
   function sortBy(key: string) {
     if (key === sortKey) setDesc(!desc);
@@ -49,10 +55,20 @@ export function IndexView({ rows, unit, minMinutes }: ViewProps) {
   }
 
   const csvRows = () => [
-    ["Player", "Number", "GP", "MIN", ...METRICS.map((m) => (m.counting ? `${m.label} (${UNIT_LABELS[unit]})` : m.label))],
+    [
+      "Player",
+      "Number",
+      "Archetype",
+      "Archetype rating",
+      "GP",
+      "MIN",
+      ...METRICS.map((m) => (m.counting ? `${m.label} (${UNIT_LABELS[unit]})` : m.label)),
+    ],
     ...rows.map((r) => [
       r.player.name,
       r.player.jersey ?? "",
+      roles[r.player.id]?.archetype?.name ?? "",
+      roles[r.player.id]?.rating ?? "",
       r.adv.gp,
       Math.round(r.adv.minutes),
       ...METRICS.map((m) => {
@@ -89,7 +105,20 @@ export function IndexView({ rows, unit, minMinutes }: ViewProps) {
             </button>
           ))}
         </div>
-        <CsvButton filename="dgs-analysis-leaderboard" rows={csvRows} label="CSV (all stats)" />
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted">
+            Rating
+            <select
+              value={ratingMode}
+              onChange={(e) => setRatingMode(e.target.value as "archetype" | "gamescore")}
+              className="rounded-lg border border-line bg-card px-2 py-1.5 text-sm font-medium normal-case tracking-normal text-fg"
+            >
+              <option value="archetype">Archetype (0–99)</option>
+              <option value="gamescore">Game Score / 32</option>
+            </select>
+          </label>
+          <CsvButton filename="dgs-analysis-leaderboard" rows={csvRows} label="CSV (all stats)" />
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -97,6 +126,21 @@ export function IndexView({ rows, unit, minMinutes }: ViewProps) {
           <thead className="text-xs uppercase tracking-wide text-muted">
             <tr>
               <Th k="name">Player</Th>
+              {ratingMode === "archetype" && (
+                <th scope="col" className="whitespace-nowrap px-3 py-2 text-left font-bold">
+                  Archetype
+                </th>
+              )}
+              <Th
+                k="rating"
+                title={
+                  ratingMode === "archetype"
+                    ? "Average team percentile on the player's archetype's key stats, 0–99"
+                    : gmsc.help
+                }
+              >
+                {ratingMode === "archetype" ? "Rating" : "GmSc/32"}
+              </Th>
               <Th k="min">MIN</Th>
               {shown.map((m) => (
                 <Th key={m.key} k={m.key} title={m.help}>
@@ -112,6 +156,24 @@ export function IndexView({ rows, unit, minMinutes }: ViewProps) {
                   {shortName(r.player)}
                   {!r.eligible && <span className="ml-1.5 text-xs font-normal text-muted">(low min)</span>}
                 </th>
+                {ratingMode === "archetype" && (
+                  <td className="whitespace-nowrap px-3 py-2 text-left">
+                    {roles[r.player.id]?.archetype?.name ?? "–"}
+                    {roles[r.player.id]?.source === "auto" && <span className="ml-1 text-xs text-muted">(auto)</span>}
+                  </td>
+                )}
+                {ratingMode === "archetype" ? (
+                  <td
+                    className="px-3 py-2 text-right font-black tabular-nums"
+                    style={{ background: r.eligible ? pctTint(roles[r.player.id]?.rating) : undefined }}
+                  >
+                    {r.eligible ? roles[r.player.id]?.rating ?? "–" : "–"}
+                  </td>
+                ) : (
+                  <td className="px-3 py-2 text-right font-black tabular-nums" style={{ background: pctTint(pcts[gmsc.key][r.player.id]) }}>
+                    {formatMetric(gmsc, gmsc.value(r.agg, r.adv, unit))}
+                  </td>
+                )}
                 <td className="px-3 py-2 text-right tabular-nums text-muted">{Math.round(r.adv.minutes)}</td>
                 {shown.map((m) => {
                   const p = pcts[m.key][r.player.id];
@@ -142,7 +204,10 @@ export function IndexView({ rows, unit, minMinutes }: ViewProps) {
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-6 rounded" style={{ background: pctTint(100) }} /> top of team
         </span>
-        <span>Hover a column for what it means. GmSc/32 is the overall rating for now; archetype ratings come in stage 4.</span>
+        <span>
+          Hover a column for what it means. The archetype rating is the player&apos;s average team percentile on their archetype&apos;s key
+          stats; &quot;(auto)&quot; means the archetype was detected from their stats.
+        </span>
       </div>
     </section>
   );

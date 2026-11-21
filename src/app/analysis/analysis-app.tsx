@@ -7,7 +7,17 @@ import type { Player } from "@/lib/sports/types";
 import { IndexView } from "./index-view";
 import { PlotView } from "./plot-view";
 import { RadarView } from "./radar-view";
-import { buildRows, shortName, toAnalysisGames, type AnalysisGameData, type ViewProps } from "./shared";
+import { archetypeRating, detectArchetype, type Archetype } from "@/lib/sports/basketball/archetypes";
+import { METRICS } from "@/lib/sports/basketball/metrics";
+import {
+  buildRows,
+  metricPercentiles,
+  shortName,
+  toAnalysisGames,
+  type AnalysisGameData,
+  type RoleInfo,
+  type ViewProps,
+} from "./shared";
 import { TeamView } from "./team-view";
 
 const VIEWS = [
@@ -23,7 +33,20 @@ type ResultFilter = "all" | "W" | "L";
 const resultOf = (g: AnalysisGameData) =>
   g.box.score.us > g.box.score.opp ? "W" : g.box.score.us < g.box.score.opp ? "L" : "T";
 
-export function AnalysisApp({ players, games }: { players: Player[]; games: AnalysisGameData[] }) {
+export function AnalysisApp({
+  players,
+  games,
+  archetypes,
+  assignments,
+  benchmarks,
+}: {
+  players: Player[];
+  games: AnalysisGameData[];
+  archetypes: Archetype[];
+  assignments: Record<string, string>;
+  benchmarks: Record<string, number>;
+}) {
+  const [roleSource, setRoleSource] = useState<"assigned" | "auto">("assigned");
   const [view, setView] = useState<View>("index");
   const seasons = useMemo(() => [...new Set(games.map((g) => seasonOf(g.date)))].sort().reverse(), [games]);
   const [season, setSeason] = useState<string>(seasons[0] ?? "all");
@@ -73,7 +96,41 @@ export function AnalysisApp({ players, games }: { players: Player[]; games: Anal
   };
   const fullGames = selected.filter((g) => g.opponentStats).length;
 
-  const props: ViewProps = { rows, games: selected, unit, minMinutes, nameOf };
+  // Team percentiles for every metric, computed once and shared by all views.
+  const pcts = useMemo(
+    () => Object.fromEntries(METRICS.map((m) => [m.key, metricPercentiles(rows, m, unit, minMinutes)])),
+    [rows, unit, minMinutes],
+  );
+
+  // Each player's archetype: the coach's pick (in "assigned" mode), else the best fit from their stats.
+  const roles = useMemo(() => {
+    const out: Record<string, RoleInfo> = {};
+    for (const r of rows) {
+      const pctOf = (key: string) => pcts[key]?.[r.player.id] ?? null;
+      const assigned = archetypes.find((a) => a.id === assignments[r.player.id]);
+      if (roleSource === "assigned" && assigned) {
+        out[r.player.id] = { archetype: assigned, rating: archetypeRating(assigned, pctOf), source: "assigned" };
+      } else {
+        const best = detectArchetype(archetypes, pctOf);
+        out[r.player.id] = best
+          ? { archetype: best.archetype, rating: best.rating, source: "auto" }
+          : { archetype: null, rating: null, source: null };
+      }
+    }
+    return out;
+  }, [rows, pcts, archetypes, assignments, roleSource]);
+
+  const props: ViewProps = {
+    rows,
+    games: selected,
+    unit,
+    minMinutes,
+    nameOf,
+    pcts,
+    roles,
+    archetypes,
+    benchmarks,
+  };
 
   return (
     <div>
@@ -95,7 +152,7 @@ export function AnalysisApp({ players, games }: { players: Player[]; games: Anal
       </div>
 
       {/* Filters: one row above every chart */}
-      <div className="mb-3 grid gap-3 rounded-2xl border border-line bg-card p-4 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mb-3 grid gap-3 rounded-2xl border border-line bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label htmlFor="f-season" className={label}>
             Season
@@ -141,6 +198,20 @@ export function AnalysisApp({ players, games }: { players: Player[]; games: Anal
                 {UNIT_LABELS[u]}
               </option>
             ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="f-role" className={label}>
+            Archetypes
+          </label>
+          <select
+            id="f-role"
+            value={roleSource}
+            onChange={(e) => setRoleSource(e.target.value as "assigned" | "auto")}
+            className={input}
+          >
+            <option value="assigned">Coach-assigned</option>
+            <option value="auto">Auto-detected</option>
           </select>
         </div>
         <div>

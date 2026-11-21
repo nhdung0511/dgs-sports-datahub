@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { PageTitle, SiteShell } from "@/components/site-shell";
+import { btnGhost } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { loadAnalysisSettings } from "@/lib/db/analysis-settings";
 import { getMyTeam } from "@/lib/db/teams";
 import { loadSeason } from "@/lib/db/season";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -34,7 +36,7 @@ export default async function AnalysisPage() {
     );
   }
 
-  const season = await loadSeason(supabase, user.id);
+  const [season, settings] = await Promise.all([loadSeason(supabase, user.id), loadAnalysisSettings(supabase, member.id)]);
   const games: AnalysisGameData[] = (season?.games ?? []).map(({ game, box }) => ({
     id: game.id,
     opponent: game.opponentName,
@@ -45,7 +47,22 @@ export default async function AnalysisPage() {
 
   return (
     <SiteShell wide>
-      <PageTitle title="Analysis" sub={`${member.name} · advanced stats · team only`} />
+      <PageTitle
+        title="Analysis"
+        sub={`${member.name} · advanced stats · team only`}
+        action={
+          <Link href="/analysis/settings" className={btnGhost}>
+            {member.role === "admin" ? "⚙ Archetypes & benchmarks" : "Archetypes & benchmarks"}
+          </Link>
+        }
+      />
+      {settings.needsMigration && member.role === "admin" && (
+        <p className="mb-5 rounded-xl bg-warn-soft px-4 py-3 text-sm ring-1 ring-warn/50">
+          Using the built-in archetypes and benchmarks. Run{" "}
+          <code className="font-bold">supabase/migrations/0006_benchmarks_archetypes.sql</code> in Supabase to customise them and
+          assign players.
+        </p>
+      )}
       {games.length === 0 ? (
         <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-muted">
           Analysis appears once a game is finished.{" "}
@@ -54,7 +71,13 @@ export default async function AnalysisPage() {
           </Link>
         </p>
       ) : (
-        <AnalysisApp players={season?.players ?? []} games={games} />
+        <AnalysisApp
+          players={season?.players ?? []}
+          games={games}
+          archetypes={settings.archetypes}
+          assignments={settings.assignments}
+          benchmarks={settings.benchmarks}
+        />
       )}
     </SiteShell>
   );

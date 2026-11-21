@@ -4,8 +4,9 @@ import { useMemo, useRef, useState } from "react";
 import { btnGhost, input, label } from "@/components/ui";
 import { saveSvgAsPng } from "@/lib/save-png";
 import { aggregatePlayers, percentileOf, playerAdvanced } from "@/lib/sports/basketball/advanced";
+import { archetypeMetrics, benchmarkFor, benchmarkScore, benchmarkValue, GOAL_RING } from "@/lib/sports/basketball/archetypes";
 import { DEFAULT_RADAR, formatMetric, metricByKey, type Metric } from "@/lib/sports/basketball/metrics";
-import { metricPercentiles, PLAYER_COLORS, shortName, toAnalysisGames, type ViewProps } from "./shared";
+import { PLAYER_COLORS, shortName, toAnalysisGames, type ViewProps } from "./shared";
 
 const PRESETS: Record<string, { label: string; keys: string[] }> = {
   allround: { label: "All-round", keys: DEFAULT_RADAR },
@@ -14,7 +15,7 @@ const PRESETS: Record<string, { label: string; keys: string[] }> = {
   defense: { label: "Defense & boards", keys: ["reb", "orebPct", "drebPct", "stlPct", "blkPct", "pf", "onNetRtg"] },
 };
 
-type Mode = "team" | "past";
+type Mode = "team" | "past" | "bench";
 
 interface Shape {
   name: string;
@@ -27,21 +28,43 @@ interface Shape {
 }
 
 /** Percentile radars: compare up to 4 teammates, or one player's recent form against their earlier games. */
-export function RadarView({ rows, games, unit, minMinutes }: ViewProps) {
+export function RadarView({ rows, games, unit, pcts, roles, benchmarks }: ViewProps) {
   const [preset, setPreset] = useState("allround");
   const [mode, setMode] = useState<Mode>("team");
   const eligible = rows.filter((r) => r.eligible);
   const [picked, setPicked] = useState<string[]>(() => (eligible.length ? eligible : rows).slice(0, 2).map((r) => r.player.id));
-  const metrics = PRESETS[preset].keys.map((k) => metricByKey(k)).filter((m): m is Metric => Boolean(m));
   const svgRef = useRef<SVGSVGElement>(null);
-
-  const pcts = useMemo(
-    () => Object.fromEntries(metrics.map((m) => [m.key, metricPercentiles(rows, m, unit, minMinutes)])),
-    [rows, metrics, unit, minMinutes],
-  );
   const pickedRows = picked.map((id) => rows.find((r) => r.player.id === id)).filter((r) => r !== undefined);
 
+  // "Player's archetype" uses the first picked player's archetype: its key stats, and its goals as targets.
+  const leadRole = pickedRows[0] ? roles[pickedRows[0].player.id] : undefined;
+  const leadArchetype = preset === "archetype" ? leadRole?.archetype ?? null : null;
+  const goals = useMemo(
+    () => new Map((leadArchetype ? archetypeMetrics(leadArchetype) : []).map(({ metric, goal }) => [metric.key, goal])),
+    [leadArchetype],
+  );
+  const metrics = useMemo(
+    () =>
+      leadArchetype
+        ? archetypeMetrics(leadArchetype).map((x) => x.metric)
+        : (PRESETS[preset] ?? PRESETS.allround).keys.map((k) => metricByKey(k)).filter((m): m is Metric => Boolean(m)),
+    [leadArchetype, preset],
+  );
+  const targetOf = (m: Metric) => goals.get(m.key) ?? benchmarkFor(m.key, benchmarks);
+
   const shapes: Shape[] = useMemo(() => {
+    if (mode === "bench") {
+      // Counting stats are per 32 min here, matching how benchmarks and goals are set.
+      return pickedRows.map((r, i) => {
+        const values = metrics.map((m) => benchmarkValue(m, r.agg, r.adv));
+        return {
+          name: shortName(r.player),
+          color: PLAYER_COLORS[i],
+          values,
+          pcts: metrics.map((m, j) => benchmarkScore(values[j], goals.get(m.key) ?? benchmarkFor(m.key, benchmarks), m.lowerIsBetter)),
+        };
+      });
+    }
     if (mode === "team") {
       return pickedRows.map((r, i) => ({
         name: shortName(r.player),
@@ -78,12 +101,14 @@ export function RadarView({ rows, games, unit, minMinutes }: ViewProps) {
         }),
       };
     });
-  }, [mode, pickedRows, metrics, pcts, games, unit, eligible]);
+  }, [mode, pickedRows, metrics, pcts, games, unit, eligible, goals, benchmarks]);
 
   function toggle(id: string) {
     setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= 4 ? cur : [...cur, id]));
   }
 
+  // Own past shows one player; the other modes compare up to four.
+  const multi = mode !== "past";
   const pastTooFew = mode === "past" && pickedRows[0] && shapes.length === 0;
 
   return (
@@ -96,9 +121,7 @@ export function RadarView({ rows, games, unit, minMinutes }: ViewProps) {
           <select id="r-mode" value={mode} onChange={(e) => setMode(e.target.value as Mode)} className={input}>
             <option value="team">Teammates (percentile)</option>
             <option value="past">Own past (last 5 vs earlier)</option>
-            <option value="bench" disabled>
-              Benchmarks (stage 4)
-            </option>
+            <option value="bench">Benchmarks / archetype goals</option>
           </select>
         </div>
         <div>
@@ -106,6 +129,9 @@ export function RadarView({ rows, games, unit, minMinutes }: ViewProps) {
             Stat set
           </label>
           <select id="r-preset" value={preset} onChange={(e) => setPreset(e.target.value)} className={input}>
+            <option value="archetype">
+              Player&apos;s archetype{leadRole?.archetype ? ` (${leadRole.archetype.name})` : ""}
+            </option>
             {Object.entries(PRESETS).map(([k, p]) => (
               <option key={k} value={k}>
                 {p.label}
@@ -125,21 +151,21 @@ export function RadarView({ rows, games, unit, minMinutes }: ViewProps) {
       </div>
 
       <fieldset className="mb-4">
-        <legend className={label}>{mode === "team" ? "Players (up to 4)" : "Player"}</legend>
+        <legend className={label}>{multi ? "Players (up to 4)" : "Player"}</legend>
         <div className="flex flex-wrap gap-2">
           {rows.map((r) => {
             const idx = picked.indexOf(r.player.id);
-            const on = mode === "team" ? idx >= 0 : idx === 0;
+            const on = multi ? idx >= 0 : idx === 0;
             return (
               <button
                 key={r.player.id}
-                onClick={() => (mode === "team" ? toggle(r.player.id) : setPicked([r.player.id]))}
+                onClick={() => (multi ? toggle(r.player.id) : setPicked([r.player.id]))}
                 aria-pressed={on}
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium ${
                   on ? "border-fg" : "border-line text-muted hover:border-muted"
                 } ${r.eligible ? "" : "opacity-50"}`}
               >
-                {on && mode === "team" && <span className="h-2.5 w-2.5 rounded-full" style={{ background: PLAYER_COLORS[idx] }} />}
+                {on && multi && <span className="h-2.5 w-2.5 rounded-full" style={{ background: PLAYER_COLORS[idx] }} />}
                 {shortName(r.player)}
               </button>
             );
@@ -155,8 +181,17 @@ export function RadarView({ rows, games, unit, minMinutes }: ViewProps) {
         <p className="rounded-xl bg-card-2 p-6 text-center text-sm text-muted">Pick a player to draw their radar.</p>
       ) : (
         <>
-          <Radar svgRef={svgRef} metrics={metrics} shapes={shapes} />
-          <RadarTable metrics={metrics} shapes={shapes} />
+          {preset === "archetype" && !leadArchetype && (
+            <p className="mb-2 text-sm text-muted">No archetype for this player yet, so the all-round stats are shown.</p>
+          )}
+          {mode === "bench" && (
+            <p className="mb-2 text-sm text-muted">
+              The dashed ring is the goal: {leadArchetype ? `${leadArchetype.name} goals` : "team benchmarks"}
+              {leadArchetype ? " (team benchmarks for any other stat)" : ""}. Counting stats are per 32 minutes here.
+            </p>
+          )}
+          <Radar svgRef={svgRef} metrics={metrics} shapes={shapes} goalRing={mode === "bench"} />
+          <RadarTable metrics={metrics} shapes={shapes} targets={mode === "bench" ? metrics.map(targetOf) : undefined} />
           {mode === "team" && pickedRows.some((r) => !r.eligible) && (
             <p className="mt-2 text-xs text-muted">
               Players under the minimum minutes have no percentiles, so their shape sits at the centre.
@@ -172,7 +207,18 @@ const SIZE = 560;
 const C = { x: SIZE / 2, y: SIZE / 2 };
 const R = 185;
 
-function Radar({ svgRef, metrics, shapes }: { svgRef: React.RefObject<SVGSVGElement | null>; metrics: Metric[]; shapes: Shape[] }) {
+function Radar({
+  svgRef,
+  metrics,
+  shapes,
+  goalRing = false,
+}: {
+  svgRef: React.RefObject<SVGSVGElement | null>;
+  metrics: Metric[];
+  shapes: Shape[];
+  /** Benchmark view: draw the goal ring (75) and hide the percentile ring numbers. */
+  goalRing?: boolean;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const n = metrics.length;
   const angle = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
@@ -185,26 +231,36 @@ function Radar({ svgRef, metrics, shapes }: { svgRef: React.RefObject<SVGSVGElem
     <div className="relative mx-auto max-w-xl">
       <svg ref={svgRef} viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-auto w-full" role="img" aria-label="Percentile radar">
         {/* Rings at 25/50/75/100th percentile */}
-        {[25, 50, 75, 100].map((p) => (
-          <g key={p}>
-            <polygon
-              points={metrics.map((_, i) => at(i, p).join(",")).join(" ")}
-              fill="none"
-              stroke="var(--line)"
-              strokeWidth={1}
-            />
-            {/* Ring value sits halfway between the first two spokes, clear of their labels. */}
-            <text
-              x={C.x + (p / 100) * R * Math.cos(-Math.PI / 2 + Math.PI / n)}
-              y={C.y + (p / 100) * R * Math.sin(-Math.PI / 2 + Math.PI / n) + 3}
-              textAnchor="middle"
-              fontSize={10}
-              fill="var(--muted)"
-            >
-              {p}
-            </text>
-          </g>
-        ))}
+        {[25, 50, 75, 100].map((p) => {
+          const goal = goalRing && p === GOAL_RING;
+          if (goalRing && !goal && p !== 100) {
+            return (
+              <polygon key={p} points={metrics.map((_, i) => at(i, p).join(",")).join(" ")} fill="none" stroke="var(--line)" strokeWidth={1} />
+            );
+          }
+          return (
+            <g key={p}>
+              <polygon
+                points={metrics.map((_, i) => at(i, p).join(",")).join(" ")}
+                fill="none"
+                stroke={goal ? "var(--muted)" : "var(--line)"}
+                strokeWidth={goal ? 1.5 : 1}
+                strokeDasharray={goal ? "5 4" : undefined}
+              />
+              {/* Ring label sits halfway between the first two spokes, clear of their labels. */}
+              <text
+                x={C.x + (p / 100) * R * Math.cos(-Math.PI / 2 + Math.PI / n)}
+                y={C.y + (p / 100) * R * Math.sin(-Math.PI / 2 + Math.PI / n) + 3}
+                textAnchor="middle"
+                fontSize={10}
+                fontWeight={goal ? 700 : 400}
+                fill="var(--muted)"
+              >
+                {goalRing ? (goal ? "goal" : "2× goal") : p}
+              </text>
+            </g>
+          );
+        })}
         {metrics.map((m, i) => {
           const [x, y] = at(i, 100);
           // Labels sit outside the 100 ring; `at` clamps to 100, so place them directly.
@@ -267,7 +323,7 @@ function Radar({ svgRef, metrics, shapes }: { svgRef: React.RefObject<SVGSVGElem
               </span>
               <b className="tabular-nums text-fg">
                 {formatMetric(metrics[hover], s.values[hover])}
-                <span className="font-normal text-muted"> · {s.pcts[hover] === null ? "–" : `${Math.round(s.pcts[hover]!)}th`}</span>
+                <span className="font-normal text-muted"> · {scoreText(s.pcts[hover], goalRing)}</span>
               </b>
             </div>
           ))}
@@ -288,13 +344,24 @@ function Radar({ svgRef, metrics, shapes }: { svgRef: React.RefObject<SVGSVGElem
   );
 }
 
-function RadarTable({ metrics, shapes }: { metrics: Metric[]; shapes: Shape[] }) {
+/** "62nd"-style percentile, or "% of goal" in the benchmark view. */
+function scoreText(score: number | null, goalRing: boolean): string {
+  if (score === null) return "–";
+  return goalRing ? `${Math.round((score / GOAL_RING) * 100)}% of goal` : `${Math.round(score)}th`;
+}
+
+function RadarTable({ metrics, shapes, targets }: { metrics: Metric[]; shapes: Shape[]; targets?: (number | null)[] }) {
   return (
     <div className="mt-5 overflow-x-auto">
       <table className="w-full min-w-[28rem] text-sm">
         <thead className="text-xs uppercase tracking-wide text-muted">
           <tr>
             <th scope="col" className="px-2 py-1.5 text-left">Stat</th>
+            {targets && (
+              <th scope="col" className="px-2 py-1.5 text-right">
+                Goal
+              </th>
+            )}
             {shapes.map((s) => (
               <th key={s.name} scope="col" className="px-2 py-1.5 text-right">
                 {s.name}
@@ -308,10 +375,16 @@ function RadarTable({ metrics, shapes }: { metrics: Metric[]; shapes: Shape[] })
               <th scope="row" className="px-2 py-1.5 text-left font-medium" title={m.help}>
                 {m.label}
               </th>
+              {targets && (
+                <td className="px-2 py-1.5 text-right tabular-nums text-muted">
+                  {formatMetric(m, targets[i])}
+                  {m.lowerIsBetter ? " ↓" : ""}
+                </td>
+              )}
               {shapes.map((s) => (
                 <td key={s.name} className="px-2 py-1.5 text-right tabular-nums">
                   {formatMetric(m, s.values[i])}
-                  <span className="ml-1.5 text-xs text-muted">{s.pcts[i] === null ? "" : `${Math.round(s.pcts[i]!)}th`}</span>
+                  <span className="ml-1.5 text-xs text-muted">{s.pcts[i] === null ? "" : scoreText(s.pcts[i], Boolean(targets))}</span>
                 </td>
               ))}
             </tr>

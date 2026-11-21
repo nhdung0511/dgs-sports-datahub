@@ -7,6 +7,7 @@ import {
   type PlayerAgg,
   type Unit,
 } from "@/lib/sports/basketball/advanced";
+import type { Archetype } from "@/lib/sports/basketball/archetypes";
 import type { Metric } from "@/lib/sports/basketball/metrics";
 import type { BoxScore } from "@/lib/sports/basketball/stats";
 import type { Player } from "@/lib/sports/types";
@@ -28,6 +29,14 @@ export interface PlayerRow {
   eligible: boolean;
 }
 
+/** A player's archetype as currently shown (assigned by a coach or auto-detected). */
+export interface RoleInfo {
+  archetype: Archetype | null;
+  /** 0–99 archetype rating, or null without enough data. */
+  rating: number | null;
+  source: "assigned" | "auto" | null;
+}
+
 /** Shared state every view gets. */
 export interface ViewProps {
   rows: PlayerRow[];
@@ -35,6 +44,12 @@ export interface ViewProps {
   unit: Unit;
   minMinutes: number;
   nameOf: (id: string) => string;
+  /** Team percentile per metric key, per player id. */
+  pcts: Record<string, Record<string, number | null>>;
+  roles: Record<string, RoleInfo>;
+  archetypes: Archetype[];
+  /** The team's own benchmark targets (defaults fill the rest). */
+  benchmarks: Record<string, number>;
 }
 
 export const toAnalysisGames = (games: readonly AnalysisGameData[]): AnalysisGame[] =>
