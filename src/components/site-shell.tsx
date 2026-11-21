@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
+import { canEdit, getMyTeam } from "@/lib/db/teams";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { Logo, SITE_NAME } from "./logo";
 import { NavLinks } from "./nav-links";
@@ -19,7 +20,10 @@ export async function SiteShell({
   /** true: children control their own full-width sections (landing page). */
   bare?: boolean;
 }) {
-  const user = isSupabaseConfigured ? (await getSessionUser()).user : null;
+  const session = isSupabaseConfigured ? await getSessionUser() : null;
+  const user = session?.user ?? null;
+  // Team members (any role) get the Analysis tab; only admins/scorekeepers can create games.
+  const member = session && user ? await getMyTeam(session.supabase, user.id) : null;
   const content = isSupabaseConfigured || !needsDb ? children : <SetupNotice />;
 
   return (
@@ -29,7 +33,7 @@ export async function SiteShell({
           <Logo />
           {/* On phones the links drop to their own row under the logo + buttons. */}
           <div className="order-3 w-full lg:order-none lg:w-auto">
-            <NavLinks />
+            <NavLinks showAnalysis={Boolean(member)} />
           </div>
           <div className="ml-auto flex items-center gap-3">
             {user && (
@@ -42,7 +46,8 @@ export async function SiteShell({
                 </button>
               </form>
             )}
-            {isSupabaseConfigured && (
+            {/* Signed out → Sign in; admins/scorekeepers → New game; players and others → nothing. */}
+            {isSupabaseConfigured && (!user || canEdit(member?.role)) && (
               <Link
                 href={user ? "/games/new" : "/login"}
                 className="inline-flex items-center gap-1.5 rounded-md bg-lime-strong px-4 py-2 text-sm font-black uppercase tracking-wide text-black transition hover:brightness-95"

@@ -163,12 +163,15 @@ export function LineChart({
   unit = "",
   max: fixedMax,
   label,
+  directLabels = true,
 }: {
   labels: string[];
   series: Series[];
   unit?: string;
   max?: number;
   label: string;
+  /** Name each line at its end. Turn off when a legend is shown and names are long. */
+  directLabels?: boolean;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const max = fixedMax ?? niceMax(Math.max(...series.flatMap((s) => s.values.map((v) => v ?? 0))));
@@ -215,7 +218,7 @@ export function LineChart({
                 ) : null,
               )}
               {/* Direct label at the line end only. */}
-              {lastIdx >= 0 && (
+              {directLabels && lastIdx >= 0 && (
                 <text x={x(lastIdx) + 8} y={y(s.values[lastIdx]!) + 4} fontSize={11} fontWeight={700} fill="var(--fg)">
                   {s.name}
                 </text>

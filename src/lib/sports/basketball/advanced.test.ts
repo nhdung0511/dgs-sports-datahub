@@ -202,3 +202,33 @@ describe("duos and lineups", () => {
     expect(fives[0].netRtg).toBeCloseTo(120); // the e lineup: 200 − 80
   });
 });
+
+describe("analysis helpers", () => {
+  it("percentileOf places a value in a pool", async () => {
+    const { percentileOf } = await import("./advanced");
+    expect(percentileOf(30, [10, 20, 30, 40])).toBe(62.5); // 2 below + half of 1 tie, out of 4
+    expect(percentileOf(5, [10, 20], true)).toBe(100);
+    expect(percentileOf(null, [1])).toBeNull();
+    expect(percentileOf(1, [])).toBeNull();
+  });
+
+  it("seasonOf uses August–July school years", async () => {
+    const { seasonOf } = await import("./advanced");
+    expect(seasonOf("2026-11-21T10:00:00Z")).toBe("2026–27");
+    expect(seasonOf("2027-03-01T10:00:00Z")).toBe("2026–27");
+    expect(seasonOf("2027-08-15T10:00:00Z")).toBe("2027–28");
+  });
+
+  it("every metric in the catalogue returns a number or null", async () => {
+    const { METRICS, formatMetric } = await import("./metrics");
+    const agg = aggregatePlayers([game()]).a;
+    const adv = playerAdvanced(agg);
+    for (const m of METRICS) {
+      for (const unit of ["per32", "perGame", "per100", "total"] as const) {
+        const v = m.value(agg, adv, unit);
+        expect(v === null || Number.isFinite(v), `${m.key} ${unit}`).toBe(true);
+        expect(typeof formatMetric(m, v)).toBe("string");
+      }
+    }
+  });
+});

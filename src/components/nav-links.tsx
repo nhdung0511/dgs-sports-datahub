@@ -11,11 +11,13 @@ const LINKS = [
 ];
 
 /** Header links: hover only recolours and underlines; the current page stays lime + underlined. */
-export function NavLinks() {
+export function NavLinks({ showAnalysis = false }: { showAnalysis?: boolean }) {
   const path = usePathname();
+  // Analysis is team-only, so it's listed only for signed-in team members.
+  const links = showAnalysis ? [...LINKS, { href: "/analysis", label: "Analysis" }] : LINKS;
   return (
     <nav className="flex items-center gap-4 overflow-x-auto text-[13px] font-bold uppercase tracking-wide sm:gap-7 sm:text-sm">
-      {LINKS.map((l) => {
+      {links.map((l) => {
         const active = path === l.href || path.startsWith(`${l.href}/`);
         return (
           <Link

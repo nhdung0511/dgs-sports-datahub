@@ -312,6 +312,28 @@ export function percentiles(
   return out;
 }
 
+/**
+ * Where a single value would rank (0–100) among a pool of values, e.g. a player's earlier form
+ * placed on the same scale as the current team pool.
+ */
+export function percentileOf(value: number | null, pool: readonly number[], lowerIsBetter = false): number | null {
+  if (value === null || pool.length === 0) return null;
+  let below = 0;
+  let equal = 0;
+  for (const p of pool) {
+    if (lowerIsBetter ? p > value : p < value) below++;
+    else if (p === value) equal++;
+  }
+  return ((below + equal / 2) / pool.length) * 100;
+}
+
+/** School seasons run August → July; returns e.g. "2026–27". */
+export function seasonOf(iso: string | null): string {
+  const d = iso ? new Date(iso) : new Date();
+  const start = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1;
+  return `${start}–${String((start + 1) % 100).padStart(2, "0")}`;
+}
+
 // ---------------------------------------------------------------------------
 // Team stats
 // ---------------------------------------------------------------------------

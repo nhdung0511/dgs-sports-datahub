@@ -36,6 +36,17 @@
   --series-1: #0d7d5e;
   --series-2: #7a9a10;
 
+  /* Players compared on the Analysis radars/plots, in this fixed order (validated, light). */
+  --player-1: #0d7d5e;
+  --player-2: #2a78d6;
+  --player-3: #eb6834;
+  --player-4: #c0559a;
+
+  /* Percentile cells: diverging blue (high) ↔ grey ↔ orange (low); colour-blind safe. */
+  --pct-high: #2a78d6;
+  --pct-low: #eb6834;
+  --pct-mid: #f0efec;
+
   color-scheme: light;
 }
 
@@ -66,6 +77,16 @@
   /* Validated separately against the dark card surface. */
   --series-1: #0d7d5e;
   --series-2: #7a9a10;
+
+  /* Same four hues stepped for the dark card surface (validated, dark). */
+  --player-1: #1f9e7a;
+  --player-2: #4a8ee8;
+  --player-3: #d95926;
+  --player-4: #d46aac;
+
+  --pct-high: #3987e5;
+  --pct-low: #d95926;
+  --pct-mid: #383835;
 
   color-scheme: dark;
 }
