@@ -21,7 +21,8 @@ export default async function LoginPage({
       <div className="mx-auto max-w-md pt-6">
         <h1 className="text-center text-3xl font-black">Scorekeeper sign-in</h1>
         <p className="mt-2 text-center text-muted">
-          We&apos;ll email you a link. No password needed. Watching a game doesn&apos;t need an account.
+          Sign in with your password, or leave it blank and we&apos;ll email you a link. Watching a game
+          doesn&apos;t need an account.
         </p>
         {error && (
           <p className="mt-6 rounded-xl bg-opp-soft px-4 py-3 text-sm ring-1 ring-opp/40">

@@ -6,12 +6,25 @@ import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm({ next }: { next: string }) {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setState("sending");
+    // With a password, sign in directly (no email sent); otherwise email a magic link.
+    if (password) {
+      const { error } = await createClient().auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        setState("error");
+      } else {
+        // Full navigation so the server sees the new session cookies.
+        window.location.assign(next);
+      }
+      return;
+    }
     const { error } = await createClient().auth.signInWithOtp({
       email,
       options: {
@@ -58,9 +71,29 @@ export function LoginForm({ next }: { next: string }) {
           className={input}
         />
       </div>
+      <div>
+        <label htmlFor="password" className={label}>
+          Password (optional)
+        </label>
+        <input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Leave blank to get an email link"
+          className={input}
+        />
+      </div>
       {state === "error" && <p className="text-sm text-opp">{error}</p>}
       <button type="submit" disabled={state === "sending"} className={`${btnPrimary} w-full`}>
-        {state === "sending" ? "Sending…" : "Email me a sign-in link"}
+        {state === "sending"
+          ? password
+            ? "Signing in…"
+            : "Sending…"
+          : password
+            ? "Sign in"
+            : "Email me a sign-in link"}
       </button>
     </form>
   );
