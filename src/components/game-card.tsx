@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeleteGameButton } from "@/app/games/delete-game-button";
 import type { GameWithBox } from "@/lib/db/games";
 
 export function StatusPill({ status }: { status: string }) {
@@ -21,7 +22,15 @@ export function formatDate(iso: string | null) {
 }
 
 /** One row in a games list: score, opponent, status, and links. */
-export function GameCard({ item, canScore }: { item: GameWithBox; canScore: boolean }) {
+export function GameCard({
+  item,
+  canScore,
+  canDelete = false,
+}: {
+  item: GameWithBox;
+  canScore: boolean;
+  canDelete?: boolean;
+}) {
   const { game, box } = item;
   const { us, opp } = box.score;
   const started = game.status !== "scheduled";
@@ -57,6 +66,7 @@ export function GameCard({ item, canScore }: { item: GameWithBox; canScore: bool
           Keep score
         </Link>
       )}
+      {canDelete && <DeleteGameButton id={game.id} opponent={game.opponentName} />}
     </li>
   );
 }

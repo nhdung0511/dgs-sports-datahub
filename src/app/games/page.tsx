@@ -7,7 +7,12 @@ import { listGames, loadGamesWithBox } from "@/lib/db/games";
 import { getClubTeam, getMyTeam } from "@/lib/db/teams";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-export default async function GamesPage() {
+export default async function GamesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ deleted?: string; error?: string }>;
+}) {
+  const sp = await searchParams;
   if (!isSupabaseConfigured) return <SiteShell>{null}</SiteShell>;
   const { supabase, user } = await getSessionUser();
   const team = await getClubTeam(supabase, user?.id);
@@ -27,6 +32,12 @@ export default async function GamesPage() {
           )
         }
       />
+      {sp.deleted && (
+        <p className="mb-4 rounded-xl bg-lime-soft px-4 py-3 text-sm ring-1 ring-lime/40">Game deleted.</p>
+      )}
+      {sp.error && (
+        <p className="mb-4 rounded-xl bg-opp-soft px-4 py-3 text-sm ring-1 ring-opp/40">{sp.error}</p>
+      )}
       {games.length === 0 ? (
         <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-muted">
           No games yet.{" "}
@@ -41,7 +52,12 @@ export default async function GamesPage() {
       ) : (
         <ul className="space-y-3">
           {games.map((g) => (
-            <GameCard key={g.game.id} item={g} canScore={Boolean(mine && g.game.scorekeeperId === user?.id)} />
+            <GameCard
+              key={g.game.id}
+              item={g}
+              canScore={Boolean(mine && g.game.scorekeeperId === user?.id)}
+              canDelete={Boolean(mine && (mine.role === "admin" || g.game.scorekeeperId === user?.id))}
+            />
           ))}
         </ul>
       )}
