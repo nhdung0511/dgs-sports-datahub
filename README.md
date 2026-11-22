@@ -88,6 +88,10 @@ Today, news appears as "Latest news" on `/` (admins post from there). The blog b
 
 Other scorekeepers sign in once, then a team admin adds them by email on the Team page.
 
+## Tests
+
+`npm test` runs unit tests. RLS for the blog: `psql -v ON_ERROR_STOP=1 -f supabase/tests/news_rls.sql` against a database with migrations 0001-0007 applied (prints `NEWS RLS OK`).
+
 ## Contributing
 
 Don't push directly to `main`. For each feature:

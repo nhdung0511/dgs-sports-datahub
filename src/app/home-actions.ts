@@ -2,8 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
-import { getMyTeam } from "@/lib/db/teams";
 import { createClient } from "@/lib/supabase/server";
 
 const text = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
@@ -26,23 +24,4 @@ export async function sendContactMessage(form: FormData) {
   const { error } = await supabase.from("contact_messages").insert({ name, email, message });
   if (error) back("contactError", "Sorry, that didn't send. Please try again.", "contact");
   back("contact", "sent", "contact");
-}
-
-export async function createNewsPost(form: FormData) {
-  const { supabase, user } = await requireUser("/#news");
-  const team = await getMyTeam(supabase, user.id);
-  if (!team || team.role !== "admin") back("newsError", "Only team admins can post news.", "news");
-  const title = text(form, "title");
-  const body = text(form, "body");
-  if (!title || !body) back("newsError", "Add a headline and some text.", "news");
-  const { error } = await supabase.from("news_posts").insert({ team_id: team.id, title, body, status: "published" });
-  if (error) back("newsError", error.message, "news");
-  back("news", "posted", "news");
-}
-
-export async function deleteNewsPost(form: FormData) {
-  const { supabase } = await requireUser("/#news");
-  const { error } = await supabase.from("news_posts").delete().eq("id", text(form, "id"));
-  if (error) back("newsError", error.message, "news");
-  back("news", "deleted", "news");
 }

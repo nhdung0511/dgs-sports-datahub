@@ -2,16 +2,16 @@ import Link from "next/link";
 import { GameCard, formatDate } from "@/components/game-card";
 import { HeroPhoto, heroPhotoSrc } from "@/components/hero-photo";
 import { SetupNotice, SiteShell } from "@/components/site-shell";
-import { btnPrimary, card, input, label } from "@/components/ui";
+import { card, input, label } from "@/components/ui";
 import { getSessionUser } from "@/lib/auth";
 import { fetchRoster, listGames, loadGamesWithBox, type GameWithBox } from "@/lib/db/games";
 import { listNewsPosts, resultNews, type NewsItem } from "@/lib/db/news";
 import { canEdit, getClubTeam, getMyTeam, type Role } from "@/lib/db/teams";
 import type { Team } from "@/lib/sports/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { createNewsPost, deleteNewsPost, sendContactMessage } from "./home-actions";
+import { sendContactMessage } from "./home-actions";
 
-type Search = Promise<{ contact?: string; contactError?: string; news?: string; newsError?: string }>;
+type Search = Promise<{ contact?: string; contactError?: string }>;
 
 export default async function Home({ searchParams }: { searchParams: Search }) {
   const sp = await searchParams;
@@ -43,7 +43,6 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
   }
 
   const liveGame = recent.find((g) => g.game.status === "live");
-  const isAdmin = myTeam?.role === "admin";
   const isEditor = canEdit(myTeam?.role);
   const photo = heroPhotoSrc();
 
@@ -129,36 +128,21 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
 
             {/* NEWS */}
             <section id="news" className="scroll-mt-28">
-              <SectionHead title="Latest news" />
-              {sp.news && (
-                <p className="mb-4 rounded-xl bg-lime-soft px-4 py-3 text-sm font-medium ring-1 ring-lime/50">
-                  {sp.news === "posted" ? "Post published." : "Post deleted."}
-                </p>
-              )}
-              {sp.newsError && (
-                <p className="mb-4 rounded-xl bg-opp-soft px-4 py-3 text-sm font-medium ring-1 ring-opp/40">{sp.newsError}</p>
-              )}
-
-              {isAdmin && (
-                <details className={`${card} mb-6 p-5`}>
-                  <summary className="cursor-pointer font-bold">+ Write a news post</summary>
-                  <form action={createNewsPost} className="mt-4 space-y-3">
-                    <div>
-                      <label htmlFor="news-title" className={label}>
-                        Headline
-                      </label>
-                      <input id="news-title" name="title" required maxLength={140} className={input} />
-                    </div>
-                    <div>
-                      <label htmlFor="news-body" className={label}>
-                        Story
-                      </label>
-                      <textarea id="news-body" name="body" required rows={4} maxLength={4000} className={input} />
-                    </div>
-                    <button className={btnPrimary}>Publish</button>
-                  </form>
-                </details>
-              )}
+              <SectionHead
+                title="Latest news"
+                action={
+                  <span className="flex gap-6 text-sm font-bold uppercase tracking-wide">
+                    {myTeam && (
+                      <Link href="/news/new" className="text-cyan hover:underline">
+                        Write a post
+                      </Link>
+                    )}
+                    <Link href="/news" className="text-cyan hover:underline">
+                      All news →
+                    </Link>
+                  </span>
+                }
+              />
 
               {news.length === 0 ? (
                 <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-muted">
@@ -175,25 +159,25 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
                       <div className="flex flex-1 flex-col p-5">
                         <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-muted">
                           <span className={n.kind === "result" ? "text-cyan" : "text-lime"}>
-                            {n.kind === "result" ? "Game result" : "Club news"}
+                            {n.kind === "result" ? "Game result" : "News"}
                           </span>
                           <span>{formatDate(n.date)}</span>
                         </div>
-                        <h3 className="mt-2 text-lg font-black leading-snug">{n.title}</h3>
-                        <p className="mt-2 line-clamp-4 whitespace-pre-line text-sm text-muted">{n.body}</p>
-                        <div className="mt-auto flex items-center justify-between pt-4">
+                        <h3 className="mt-2 text-lg font-black leading-snug">
                           {n.href ? (
-                            <Link href={n.href} className="text-sm font-bold uppercase tracking-wide text-cyan hover:underline">
-                              Box score →
+                            <Link href={n.href} className="hover:underline">
+                              {n.title}
                             </Link>
                           ) : (
-                            <span />
+                            n.title
                           )}
-                          {isAdmin && n.kind === "post" && (
-                            <form action={deleteNewsPost}>
-                              <input type="hidden" name="id" value={n.id} />
-                              <button className="text-xs font-medium text-muted hover:text-opp hover:underline">Delete</button>
-                            </form>
+                        </h3>
+                        <p className="mt-2 line-clamp-4 whitespace-pre-line text-sm text-muted">{n.body}</p>
+                        <div className="mt-auto pt-4">
+                          {n.href && (
+                            <Link href={n.href} className="text-sm font-bold uppercase tracking-wide text-cyan hover:underline">
+                              {n.kind === "result" ? "Box score →" : "Read post →"}
+                            </Link>
                           )}
                         </div>
                       </div>

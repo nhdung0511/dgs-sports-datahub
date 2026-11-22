@@ -53,17 +53,16 @@ Full handoff (design spec, file list, acceptance criteria): [`docs/news-blog-han
 
 | # | Item                                                                                       | Status  |
 | - | ------------------------------------------------------------------------------------------ | ------- |
-| 1 | Migration `0007_news_blog.sql`: slug, summary, category, status, byline, published_at, RLS  | Written, **not yet applied/tested** |
-| 2 | Data layer `src/lib/db/news.ts`: list/get/create/update/transition; slugify; date format    | Planned |
-| 3 | Public pages `/news` (list + category filter) and `/news/[slug]`, Open Graph metadata        | Planned |
-| 4 | Nav "News" link; home "Latest news" links to post pages                                      | Planned |
-| 5 | Editor `/news/new`, `/news/[slug]/edit` (markdown + live preview, swappable editor component) | Planned |
-| 6 | Workflow: `/news/mine`, `/news/review` (admin queue), submit / publish / send back / unpublish | Planned |
-| 7 | Tests: slugify, date format, markdown sanitising, RLS assertions (incl. "prove it fails")    | Planned |
+| 1 | Migration `0007_news_blog.sql`: slug, summary, category, status, byline, published_at, RLS  | Done. Applied on scratch Postgres; `supabase/tests/news_rls.sql` green, fails when policies are weakened |
+| 2 | Data layer `src/lib/db/news.ts`: list/get/create/update/transition; slugify; date format    | Done (`src/lib/news/`, tested) |
+| 3 | Public pages `/news` (list + category filter) and `/news/[slug]`, Open Graph metadata        | Done. Checked with fixtures at desktop and phone width, dark |
+| 4 | Nav "News" link; home "Latest news" links to post pages                                      | Done. Old home-page admin form removed |
+| 5 | Editor `/news/new`, `/news/[slug]/edit` (markdown + live preview, swappable editor component) | Done. **Not yet clicked through signed in** |
+| 6 | Workflow: `/news/mine`, `/news/review` (admin queue), submit / publish / send back / unpublish | Done. **Not yet clicked through signed in** |
+| 7 | Tests: slugify, date format, markdown sanitising, RLS assertions (incl. "prove it fails")    | Done (63 unit tests; RLS proof run) |
 | 8 | Later PRs: image uploads (Storage), link a post to a game (box score), RSS, friendlier editor | Backlog |
 
-Until the blog ships, the home page keeps working: admins post from the old form (now inserted as
-`published`) and the home list shows published posts only.
+Home "Latest news" now links each post to `/news/[slug]`; posts are written at `/news/new`.
 
 ### Collaboration / tooling
 | Item                                                        | Status  |
@@ -99,6 +98,10 @@ Still open: non-team club members as authors (needs a new role); comments/reacti
 - Property values key by stable id, never by name.
 
 ## Gotchas already hit
+- Vitest 5 / Vite 8 uses oxc and ignores tsconfig `jsx: preserve` badly; `vitest.config.mts` sets `oxc.jsx.runtime = "automatic"` so `.tsx` components can be tested.
+- RLS tests need a Supabase-like Postgres: roles `anon`/`authenticated`, `auth.users`, and `auth.uid()` reading `request.jwt.claims` (handle the empty string). Plain `postgres:16` plus that shim is enough; run `psql -v ON_ERROR_STOP=1 -f supabase/tests/news_rls.sql`.
+- Post slugs `new`, `mine`, `review`, `edit` collide with routes; `createPost` suffixes them with `-post`.
+- `/news` pages are Newsreader + Libre Franklin via `next/font/google` in `src/app/news/layout.tsx`; the rest of the app keeps Satoshi.
 - Public pages are readable by anyone with the link; never put team-only data (analysis, contact messages)
   behind a client-side check alone.
 - Supabase magic-link redirects point at localhost unless the Site URL and redirect URLs are updated for the
