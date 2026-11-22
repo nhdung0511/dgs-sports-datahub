@@ -1,0 +1,153 @@
+/*
+ * Reading-page system for /news. Own tokens so the app's green-on-green chrome stays out of the
+ * way: warm paper, near-black ink, one accent. No gradients, shadows or card fills.
+ * Muted on paper is 5.6:1 (light) and 7:1 (dark); fix the token, not the component, if that changes.
+ */
+.news {
+  --news-paper: #fcfbf8;
+  --news-ink: #14201c;
+  --news-muted: #5d6b66;
+  --news-rule: #d9dfdb;
+  --news-accent: #1a775f;
+  --news-fill: #eef1ee;
+  --serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --sans: var(--font-franklin), "Helvetica Neue", Arial, sans-serif;
+  background: var(--news-paper);
+  color: var(--news-ink);
+  font-family: var(--serif);
+  font-feature-settings: normal;
+  /* Header ~80px + footer ~90px: keep the paper colour to the footer on short pages. */
+  min-height: calc(100vh - 170px);
+  /* A long URL or unbroken token must wrap, not widen the page (checked at 320px). */
+  overflow-wrap: anywhere;
+}
+.dark .news {
+  --news-paper: #0c1512;
+  --news-ink: #e8efec;
+  --news-muted: #93a59e;
+  --news-rule: #223630;
+  --news-accent: #b2d762;
+  --news-fill: #15241f;
+}
+
+.news :where(a, button, input, select, textarea, [role="tab"]):focus-visible {
+  outline: 2px solid var(--news-accent);
+  outline-offset: 2px;
+}
+
+.news .sans { font-family: var(--sans); }
+.news .tnum { font-variant-numeric: tabular-nums; }
+.news .muted { color: var(--news-muted); }
+.news .rule { border-color: var(--news-rule); }
+
+.news .label {
+  font: 700 11px/1 var(--sans);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--news-accent);
+}
+
+/* Headlines */
+.news .h-page { font: 700 44px/1.05 var(--serif); letter-spacing: -0.015em; font-variation-settings: "opsz" 72; text-wrap: balance; }
+.news .h-article { font: 700 44px/1.08 var(--serif); letter-spacing: -0.015em; font-variation-settings: "opsz" 72; text-wrap: balance; }
+.news .h-lead { font: 700 36px/1.1 var(--serif); letter-spacing: -0.01em; font-variation-settings: "opsz" 48; text-wrap: balance; }
+.news .h-row { font: 700 22px/1.18 var(--serif); text-wrap: balance; }
+.news .dek { font: 400 21px/1.4 var(--serif); color: var(--news-muted); }
+@media (max-width: 639px) {
+  .news .h-page { font-size: 36px; }
+  .news .h-article { font-size: 32px; line-height: 1.12; }
+  .news .h-lead { font-size: 28px; line-height: 1.12; }
+  .news .h-row { font-size: 20px; line-height: 1.2; }
+  .news .dek { font-size: 19px; }
+}
+
+/* Headline links: underline appears on hover/focus, nothing else moves. */
+.news .hl a { text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 1px; text-underline-offset: 3px; transition: text-decoration-color 120ms; }
+.news .hl a:hover, .news .hl a:focus-visible { text-decoration-color: currentColor; }
+@media (prefers-reduced-motion: reduce) { .news .hl a { transition: none; } }
+
+.news .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Filter tabs */
+.news .tabs { display: flex; gap: 24px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; }
+.news .tabs::-webkit-scrollbar { display: none; }
+.news .tab { font: 600 14px/1 var(--sans); padding: 14px 0; min-height: 44px; white-space: nowrap; scroll-snap-align: start; text-underline-offset: 8px; text-decoration-thickness: 2px; color: var(--news-ink); }
+.news .tab[aria-current="page"] { text-decoration: underline; text-decoration-color: var(--news-accent); }
+.news .tab:hover { color: var(--news-accent); }
+
+/* Buttons and inputs for editor / workflow screens */
+.news .btn { font: 600 14px/1 var(--sans); min-height: 44px; padding: 0 18px; border-radius: 6px; border: 1px solid var(--news-rule); background: transparent; color: var(--news-ink); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.news .btn:hover { border-color: var(--news-muted); }
+.news .btn[disabled] { opacity: 0.5; cursor: default; }
+.news .btn-primary { background: #1a775f; border-color: #1a775f; color: #fff; }
+.news .btn-primary:hover { background: #156450; border-color: #156450; }
+.news .btn-quiet { border-color: transparent; padding: 0 8px; color: var(--news-muted); }
+.news .btn-quiet:hover { color: #be123c; border-color: transparent; }
+.news .pill { font: 600 14px/1 var(--sans); min-height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--news-rule); display: inline-flex; align-items: center; background: transparent; color: var(--news-ink); cursor: pointer; }
+.news .pill:hover { border-color: var(--news-muted); }
+.news .field { font: 400 15px/1.3 var(--sans); width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--news-rule); border-radius: 6px; background: var(--news-paper); color: var(--news-ink); }
+.news .field-label { display: block; font: 600 13px/1.3 var(--sans); margin-bottom: 6px; }
+.news .field-hint { font: 400 13px/1.3 var(--sans); color: var(--news-muted); }
+.news textarea.field { padding: 10px 12px; min-height: 0; }
+.news .editor-body { font: 400 17px/1.6 var(--serif); min-height: 420px; resize: vertical; }
+.news .dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; flex: none; }
+.news .dot-draft { background: #8b9692; }
+.news .dot-submitted { background: #d99a0b; }
+.news .dot-published { background: #1a775f; }
+.dark .news .dot-published { background: #b2d762; }
+.news .notice { font: 400 14px/1.45 var(--sans); border: 1px solid var(--news-rule); padding: 12px 16px; }
+.news .notice-error { border-color: #be123c; }
+
+/* Article body */
+.news .prose { font: 400 19px/1.65 var(--serif); font-variation-settings: "opsz" 16; overflow-wrap: anywhere; hyphens: manual; }
+@media (max-width: 639px) { .news .prose { font-size: 18px; line-height: 1.6; } }
+.news .prose > * + * { margin-top: 1.1em; }
+.news .prose h2 { font: 700 26px/1.2 var(--serif); margin-top: 2em; margin-bottom: 0.5em; }
+.news .prose h3 { font: 700 15px/1.3 var(--sans); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2em; }
+.news .prose h2 + *, .news .prose h3 + * { margin-top: 0; }
+@media (max-width: 639px) { .news .prose h2 { font-size: 23px; } }
+.news .prose a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.news .prose a:hover { color: var(--news-accent); }
+.news .prose blockquote { font-style: italic; border-left: 2px solid var(--news-rule); padding-left: 20px; }
+.news .prose ul, .news .prose ol { padding-left: 1.2em; }
+.news .prose ul { list-style: disc; }
+.news .prose ol { list-style: decimal; }
+.news .prose li + li { margin-top: 0.3em; }
+.news .prose hr { border: 0; border-top: 1px solid var(--news-rule); width: 48px; margin: 2em auto; }
+.news .prose figure img { width: 100%; height: auto; display: block; }
+.news .prose figcaption { font: 400 13px/1.45 var(--sans); color: var(--news-muted); margin-top: 8px; }
+.news .prose code { font-size: 0.9em; background: var(--news-fill); padding: 0.1em 0.3em; border-radius: 3px; }
+.news .prose pre { white-space: pre-wrap; background: var(--news-fill); padding: 12px 16px; }
+.news .prose pre code { background: none; padding: 0; }
+.news .prose table { border-collapse: collapse; font: 400 15px/1.4 var(--sans); width: 100%; display: block; overflow-x: auto; }
+.news .prose th, .news .prose td { border-bottom: 1px solid var(--news-rule); padding: 8px 12px 8px 0; text-align: left; font-variant-numeric: tabular-nums; }
+.news .prose th { font-weight: 700; }
+
+/* Front page (NYT-inspired structure, our paper/ink/accent tokens). */
+.news .masthead { padding-top: 4px; }
+.news .wordmark { font: 700 44px/1 var(--serif); letter-spacing: -0.02em; font-variation-settings: "opsz" 72; text-align: center; padding: 18px 0 10px; text-wrap: balance; }
+.news .wordmark a:hover { color: inherit; }
+@media (min-width: 640px) { .news .wordmark { font-size: 68px; padding: 26px 0 14px; } }
+/* Heavy-over-light double rule under the masthead, like a printed front page. */
+.news .section-nav { margin-top: 20px; border-top: 3px double var(--news-ink); border-bottom: 1px solid var(--news-ink); }
+.news .section-nav .tab { padding: 10px 0; min-height: 44px; display: inline-flex; align-items: center; }
+.news .section-head { font: 700 11px/1 var(--sans); letter-spacing: 0.09em; text-transform: uppercase; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--news-rule); }
+
+.news .front { display: grid; gap: 0; padding-top: 28px; }
+.news .front > section, .news .front > aside { padding-bottom: 8px; }
+.news .front-left, .news .front-right { border-top: 1px solid var(--news-rule); margin-top: 24px; padding-top: 24px; }
+@media (min-width: 900px) {
+  .news .front { grid-template-columns: 1fr 1.7fr 1fr; grid-template-areas: "left lead right"; }
+  .news .front-lead { grid-area: lead; padding: 0 28px; border-left: 1px solid var(--news-rule); border-right: 1px solid var(--news-rule); }
+  .news .front-left { grid-area: left; padding: 0 28px 0 0; border: 0; margin: 0; }
+  .news .front-right { grid-area: right; padding: 0 0 0 28px; border: 0; margin: 0; }
+  /* Lone lead: no side columns, so drop the rules and centre it. */
+  .news .front-lead:only-child { grid-column: 1 / -1; border: 0; max-width: 760px; margin: 0 auto; }
+  .news .h-lead { font-size: 44px; }
+  .news .front-left .h-row { font-size: 20px; }
+}
+.news .more { margin-top: 32px; border-top: 3px double var(--news-ink); padding-top: 20px; }
+.news .more-grid { display: grid; gap: 0 28px; }
+@media (min-width: 640px) { .news .more-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px) { .news .more-grid { grid-template-columns: repeat(3, 1fr); } .news .more-grid > article { border-top: 1px solid var(--news-rule); padding-top: 20px; } }
+@media (max-width: 899px) { .news .more-grid > article:not(:first-child) { border-top: 1px solid var(--news-rule); padding-top: 20px; } }

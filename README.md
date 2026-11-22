@@ -1,14 +1,17 @@
 # DGS Sports Datahub
 
-Live basketball scorekeeping and stats for the Sports Data Analytics Club.
+Home of the Sports Data Analytics Club: **live basketball scorekeeping and stats**, plus a
+**sports news blog** where club members publish recaps, analysis write-ups and sports news.
 Next.js (App Router) + Supabase (Postgres, Auth, Realtime), deployed on Vercel.
+
+See [`PLAN.md`](PLAN.md) for the goal, scope and current status (what's done, what's planned).
 
 ## Setup
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. In the Supabase SQL Editor, run `supabase/migrations/0001_init.sql`, then
    `0002_team_members.sql`, then `0003_news_contact.sql`, then `0004_grants.sql`, then
-   `0005_player_role.sql`, then `0006_benchmarks_archetypes.sql`.
+   `0005_player_role.sql`, then `0006_benchmarks_archetypes.sql`, then `0007_news_blog.sql`.
    In Authentication → URL Configuration, set the Site URL (e.g. `http://localhost:3000`)
    and add `http://localhost:3000/auth/callback` to the redirect URLs.
 3. Copy `.env.example` to `.env.local` and fill in the project URL and anon/publishable key
@@ -50,6 +53,8 @@ Next.js (App Router) + Supabase (Postgres, Auth, Realtime), deployed on Vercel.
   (`src/lib/offline/outbox.ts`), then are upserted to Supabase on reconnect.
 - **One scorekeeper per game.** RLS only lets `games.scorekeeper_id` write a game's events.
 - **Public via link.** Anyone can read games and events; only signed-in team members write.
+- **News and data together.** Published posts (`news_posts`) are public. Any team member can write a draft and
+  submit it; only admins publish. Posts will be able to link to a game's box score.
 - **Multi-sport ready.** Teams/players/games/events are sport-agnostic; each sport adds its
   event types, payloads and stat rules under `src/lib/sports/<sport>/`.
 
@@ -66,6 +71,12 @@ Next.js (App Router) + Supabase (Postgres, Auth, Realtime), deployed on Vercel.
 | `/g/[id]`           | Public live game page + CSV export |
 | `/season`           | Season stats + CSV export          |
 | `/dashboard`        | Charts, lineups, game log          |
+| `/analysis`         | Team-only advanced stats           |
+| `/analysis/settings`| Benchmarks and archetypes (admins) |
+| `/news` *(planned)* | Blog: all published posts, `/news/[slug]` per post |
+
+Today, news appears as "Latest news" on `/` (admins post from there). The blog build is specified in
+[`docs/news-blog-handoff.md`](docs/news-blog-handoff.md).
 
 ## First run
 
@@ -76,3 +87,21 @@ Next.js (App Router) + Supabase (Postgres, Auth, Realtime), deployed on Vercel.
 5. **Finish game** when it's over; it then counts toward season stats.
 
 Other scorekeepers sign in once, then a team admin adds them by email on the Team page.
+
+## Tests
+
+`npm test` runs unit tests. RLS for the blog: `psql -v ON_ERROR_STOP=1 -f supabase/tests/news_rls.sql` against a database with migrations 0001-0007 applied (prints `NEWS RLS OK`).
+
+## Contributing
+
+Don't push directly to `main`. For each feature:
+
+1. `git switch -c feat/short-name` (use `fix/…` or `docs/…` for other work).
+2. Push the branch early and open a **draft pull request** — that tells the team you're working on it.
+   Say in the title if you touch a high-conflict file (`games/[id]/score/scorer.tsx`, the Analysis views).
+3. Vercel builds a preview URL for the branch; test the feature there.
+4. Before marking ready: `npm test`, `npm run lint`, `npm run build`.
+5. Get one teammate's review, then squash-merge into `main` and delete the branch.
+
+Database changes: add the next numbered file in `supabase/migrations/` (tell the team which number you
+took) and list it in Setup above. Update the status rows in `PLAN.md` in the same PR.
