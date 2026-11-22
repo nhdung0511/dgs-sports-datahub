@@ -22,7 +22,10 @@ export async function listNewsPosts(supabase: SupabaseClient, teamId: string, li
     .from("news_posts")
     .select("id, title, body, created_at")
     .eq("team_id", teamId)
-    .order("created_at", { ascending: false })
+    // Drafts/submitted posts are visible to their author and admins under RLS; the home page
+    // must still show published ones only.
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
   return (data as PostRow[]).map((r) => ({

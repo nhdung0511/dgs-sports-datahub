@@ -11,7 +11,7 @@ See [`PLAN.md`](PLAN.md) for the goal, scope and current status (what's done, wh
 1. Create a project at [supabase.com](https://supabase.com).
 2. In the Supabase SQL Editor, run `supabase/migrations/0001_init.sql`, then
    `0002_team_members.sql`, then `0003_news_contact.sql`, then `0004_grants.sql`, then
-   `0005_player_role.sql`, then `0006_benchmarks_archetypes.sql`.
+   `0005_player_role.sql`, then `0006_benchmarks_archetypes.sql`, then `0007_news_blog.sql`.
    In Authentication → URL Configuration, set the Site URL (e.g. `http://localhost:3000`)
    and add `http://localhost:3000/auth/callback` to the redirect URLs.
 3. Copy `.env.example` to `.env.local` and fill in the project URL and anon/publishable key
@@ -53,8 +53,8 @@ See [`PLAN.md`](PLAN.md) for the goal, scope and current status (what's done, wh
   (`src/lib/offline/outbox.ts`), then are upserted to Supabase on reconnect.
 - **One scorekeeper per game.** RLS only lets `games.scorekeeper_id` write a game's events.
 - **Public via link.** Anyone can read games and events; only signed-in team members write.
-- **News and data together.** Blog posts (`news_posts`) are public to read; only team admins publish
-  today (more authors planned — see `PLAN.md`). Posts will be able to link to a game's box score.
+- **News and data together.** Published posts (`news_posts`) are public. Any team member can write a draft and
+  submit it; only admins publish. Posts will be able to link to a game's box score.
 - **Multi-sport ready.** Teams/players/games/events are sport-agnostic; each sport adds its
   event types, payloads and stat rules under `src/lib/sports/<sport>/`.
 
@@ -73,9 +73,10 @@ See [`PLAN.md`](PLAN.md) for the goal, scope and current status (what's done, wh
 | `/dashboard`        | Charts, lineups, game log          |
 | `/analysis`         | Team-only advanced stats           |
 | `/analysis/settings`| Benchmarks and archetypes (admins) |
-| `/news` *(planned)* | Blog: all posts, `/news/[slug]` per post |
+| `/news` *(planned)* | Blog: all published posts, `/news/[slug]` per post |
 
-Today, news appears as "Latest News" on `/` (admins post from there).
+Today, news appears as "Latest news" on `/` (admins post from there). The blog build is specified in
+[`docs/news-blog-handoff.md`](docs/news-blog-handoff.md).
 
 ## First run
 

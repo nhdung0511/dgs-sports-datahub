@@ -16,15 +16,14 @@ cited from a post.
 
 ## Audience and visibility
 
-| Who                         | Can do                                                                   |
-| --------------------------- | ------------------------------------------------------------------------ |
-| Anyone (no login)           | Read blog posts, live games, box scores, season stats                    |
-| Signed-in team **player**   | Everything above + team-only Analysis tab (view only)                    |
-| Team **scorekeeper**        | Above + score games                                                      |
-| Team **admin**              | Above + manage roster/members, settings, **publish and edit all posts**  |
-| Post **author** (see below) | Write and edit their own posts; published ones are public                |
+| Who                       | Can do                                                                              |
+| ------------------------- | ----------------------------------------------------------------------------------- |
+| Anyone (no login)         | Read **published** blog posts, live games, box scores, season stats                 |
+| Team **player**           | Above + team-only Analysis (view only) + write blog drafts and submit them          |
+| Team **scorekeeper**      | Above + score games                                                                 |
+| Team **admin**            | Above + manage roster/members/settings, review queue, **publish/unpublish/edit/delete any post** |
 
-Who may author is an open question — see "Decisions to make".
+Blog authorship: any team member can write. Only an admin publishes. See "Blog decisions" below.
 
 ## Architecture
 
@@ -50,21 +49,21 @@ Who may author is an open question — see "Decisions to make".
 | Analysis extras — PNG export, date/opponent filters          | Check against `docs/analysis-plan.md` |
 
 ### News / blog pillar
-Today: admins can post a short plain-text item (title ≤ 140 chars, body ≤ 4000) shown as "Latest News" on
-the home page (`news_posts`, migration `0003`). There is no post page, no rich formatting, no images.
+Full handoff (design spec, file list, acceptance criteria): [`docs/news-blog-handoff.md`](docs/news-blog-handoff.md).
 
-| # | Item                                                                                   | Status  |
-| - | -------------------------------------------------------------------------------------- | ------- |
-| 1 | Post pages: `/news` (list) and `/news/[slug]` (public, readable by link, shareable)     | Planned |
-| 2 | Migration: slug, summary, cover image, `status` (draft/published), `published_at`, `updated_at`, category/tags; keep RLS (public read of published only; drafts visible to author/admins) | Planned |
-| 3 | Editor: `/news/new` and `/news/[slug]/edit` — markdown body with preview, draft/publish | Planned |
-| 4 | Images: cover + inline via Supabase Storage (size/type limits, RLS on bucket)           | Planned |
-| 5 | Link posts to a game (recap shows box score) and to players                             | Planned |
-| 6 | Nav: add "News" to main nav; home shows latest 3 posts linking to full pages            | Planned |
-| 7 | Metadata: per-post title/description/Open Graph for link sharing; RSS feed              | Planned |
-| 8 | Tests: slug generation, markdown sanitising, RLS assertions (anon sees drafts = zero)   | Planned |
+| # | Item                                                                                       | Status  |
+| - | ------------------------------------------------------------------------------------------ | ------- |
+| 1 | Migration `0007_news_blog.sql`: slug, summary, category, status, byline, published_at, RLS  | Written, **not yet applied/tested** |
+| 2 | Data layer `src/lib/db/news.ts`: list/get/create/update/transition; slugify; date format    | Planned |
+| 3 | Public pages `/news` (list + category filter) and `/news/[slug]`, Open Graph metadata        | Planned |
+| 4 | Nav "News" link; home "Latest news" links to post pages                                      | Planned |
+| 5 | Editor `/news/new`, `/news/[slug]/edit` (markdown + live preview, swappable editor component) | Planned |
+| 6 | Workflow: `/news/mine`, `/news/review` (admin queue), submit / publish / send back / unpublish | Planned |
+| 7 | Tests: slugify, date format, markdown sanitising, RLS assertions (incl. "prove it fails")    | Planned |
+| 8 | Later PRs: image uploads (Storage), link a post to a game (box score), RSS, friendlier editor | Backlog |
 
-Suggested order: 2 → 1 → 6 → 3 → 8 → 4 → 5 → 7. Each is its own PR.
+Until the blog ships, the home page keeps working: admins post from the old form (now inserted as
+`published`) and the home list shows published posts only.
 
 ### Collaboration / tooling
 | Item                                                        | Status  |
@@ -75,13 +74,22 @@ Suggested order: 2 → 1 → 6 → 3 → 8 → 4 → 5 → 7. Each is its own PR
 | Split `scorer.tsx` (668 lines) into smaller components      | Planned |
 | Drop root `force-dynamic`; let public pages cache/revalidate | Planned |
 
-## Decisions to make
-- **Who can author posts?** Admins only (current), or any signed-in team member (scorekeeper/player) with
-  admin approval before publish? Affects the RLS policy in item 2.
-- **Body format:** markdown (recommended — simple, safe when sanitised, easy to diff) vs. a rich-text editor.
-- **Non-team writers:** should club members without a team role be able to post? Would need a separate
-  author role.
-- **Comments / reactions:** out of scope for now.
+## Blog decisions (agreed 2026-11-22)
+- **Authors:** any team member writes; admins publish. Admins can also publish their own posts directly.
+- **Workflow:** `draft -> submitted -> published`. Admin can send a submitted post back to draft, or unpublish.
+- **After publish:** non-admin authors cannot edit. Only admins edit published posts.
+- **Delete:** author deletes own drafts; admins delete anything.
+- **Body:** markdown, sanitised on render (no raw HTML), live preview. The editor is one swappable component
+  (`{ value, onChange }`) so a friendlier editor for non-technical writers can replace it later without
+  touching storage, pages or RLS.
+- **Images:** none in v1 (markdown may reference an external https image). Uploads are a later PR.
+- **Byline:** free-text "Written by" per post. No emails or profile table.
+- **Categories:** one per post: Game recap, Analysis, News, Opinion. Fixed list, changed by migration.
+- **Scope:** one club blog (`/news`, `/news/[slug]`); `team_id` stays for RLS.
+- **v1 line:** share metadata (Open Graph) yes; game links and RSS later.
+- **Slugs** are generated once from the title and never change.
+
+Still open: non-team club members as authors (needs a new role); comments/reactions (out of scope).
 
 ## Rules for any new work
 - A migration that adds a table must enable RLS, grant to `authenticated`, revoke from `anon` by name where
@@ -95,4 +103,6 @@ Suggested order: 2 → 1 → 6 → 3 → 8 → 4 → 5 → 7. Each is its own PR
   behind a client-side check alone.
 - Supabase magic-link redirects point at localhost unless the Site URL and redirect URLs are updated for the
   deployed domain.
-- Non-UUID ids make Postgres throw; `fetchGame` guards for this — do the same for any new `[id]`/`[slug]` route.
+- Non-UUID ids make Postgres throw; `fetchGame` guards for this — do the same for any new `[id]` route.
+- Migration `0004` grants all tables to `anon` by default. RLS still protects rows, but revoke anon's writes by name on any new table (see `0007`).
+- Postgres has no `unaccent` here; transliterate diacritics (Vietnamese `đ`, `ư`...) in the app before saving a slug.

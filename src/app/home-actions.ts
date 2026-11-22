@@ -35,7 +35,7 @@ export async function createNewsPost(form: FormData) {
   const title = text(form, "title");
   const body = text(form, "body");
   if (!title || !body) back("newsError", "Add a headline and some text.", "news");
-  const { error } = await supabase.from("news_posts").insert({ team_id: team.id, title, body });
+  const { error } = await supabase.from("news_posts").insert({ team_id: team.id, title, body, status: "published" });
   if (error) back("newsError", error.message, "news");
   back("news", "posted", "news");
 }
