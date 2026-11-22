@@ -8,7 +8,7 @@ const isMissingTable = (e: { code?: string } | null) => e?.code === "42P01" || e
 export interface CoachSettings {
   /** The team's changes to the default thresholds (merged with mergeThresholds()). */
   overrides: Record<string, number>;
-  /** 0007_coach_role.sql hasn't been run yet. */
+  /** 0008_coach_role.sql hasn't been run yet. */
   needsMigration: boolean;
 }
 

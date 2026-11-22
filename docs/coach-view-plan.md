@@ -49,7 +49,7 @@ The view combines the stats panels with an alert feed. The alerts come from simp
 
 ## Thresholds
 - The defaults scale with the game format: the foul-out limit is 5 for FIBA and high school and 6 for NBA, and the stint length scales with `periodLengthSec`.
-- A new migration, **`0007_coach_role.sql`**, will make these changes:
+- A new migration, **`0008_coach_role.sql`**, will make these changes:
   - Add `coach` to the role check.
   - Include coaches in `is_team_editor`.
   - Add a helper `is_team_coach(t)` that returns true for admins and coaches.
@@ -68,7 +68,7 @@ The view combines the stats panels with an alert feed. The alerts come from simp
 - No extra storage is needed because everything is derived from the events.
 
 ## Build steps
-1. **Role and migration**: `0007_coach_role.sql`, `Role` type and `canEdit` in `src/lib/db/teams.ts`, the role picker on the Team page, and an `isCoach()` helper.
+1. **Role and migration**: `0008_coach_role.sql`, `Role` type and `canEdit` in `src/lib/db/teams.ts`, the role picker on the Team page, and an `isCoach()` helper.
 2. **Pure logic and tests**: `coach.ts` (the game state at time T, runs, stints, live and baseline comparisons) and `coach-alerts.ts` (rules and default thresholds), with vitest tests.
 3. **Shared hook**: move the Realtime code out of `live-game.tsx` into `useLiveEvents`, adding polling and staleness.
 4. **`CoachView` component**: the panels and the alert feed, using SVG charts from `charts.tsx`. It must work on phones first, with the dense toggle.

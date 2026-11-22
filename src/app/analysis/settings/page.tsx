@@ -244,7 +244,7 @@ export default async function AnalysisSettingsPage({
           </p>
           {coachSettings.needsMigration && (
             <p className="mt-3 rounded-xl bg-warn-soft px-4 py-3 text-sm ring-1 ring-warn/50">
-              Run <code className="font-bold">supabase/migrations/0007_coach_role.sql</code> in the Supabase SQL Editor to save these.
+              Run <code className="font-bold">supabase/migrations/0008_coach_role.sql</code> in the Supabase SQL Editor to save these.
             </p>
           )}
           <form action={saveCoachSettings} className="mt-4">

@@ -57,7 +57,7 @@ export default async function CoachPage({ params }: { params: Promise<{ id: stri
       />
       {settings.needsMigration && (
         <p className="mb-4 rounded-xl bg-warn-soft px-4 py-3 text-sm ring-1 ring-warn/50">
-          Using default alert thresholds. Run <code className="font-bold">supabase/migrations/0007_coach_role.sql</code> in Supabase to
+          Using default alert thresholds. Run <code className="font-bold">supabase/migrations/0008_coach_role.sql</code> in Supabase to
           customise them.
         </p>
       )}
