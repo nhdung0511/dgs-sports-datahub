@@ -1,10 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Team } from "@/lib/sports/types";
 
-export type Role = "admin" | "scorekeeper" | "player";
+export type Role = "admin" | "coach" | "scorekeeper" | "player";
 
-/** Admins and scorekeepers can change team data; players are view-only. */
-export const canEdit = (role: Role | null | undefined) => role === "admin" || role === "scorekeeper";
+/** Admins, coaches and scorekeepers can change team data; players are view-only. */
+export const canEdit = (role: Role | null | undefined) =>
+  role === "admin" || role === "coach" || role === "scorekeeper";
+
+/** Only admins and coaches can see the coach view (docs/coach-view-plan.md). */
+export const isCoach = (role: Role | null | undefined) => role === "admin" || role === "coach";
 
 export interface Member {
   userId: string;

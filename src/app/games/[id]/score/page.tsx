@@ -5,7 +5,8 @@ import { btnPrimary } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { fetchGameEvents } from "@/lib/db/events";
 import { fetchGame, fetchRoster } from "@/lib/db/games";
-import { canEdit, getMyTeam } from "@/lib/db/teams";
+import { loadBaselineGames, loadCoachSettings } from "@/lib/db/coach";
+import { canEdit, getMyTeam, isCoach } from "@/lib/db/teams";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { Scorer } from "./scorer";
 
@@ -35,10 +36,16 @@ export default async function ScorePage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const [players, events] = await Promise.all([
+  const coaching = isCoach(member?.role) && member?.id === game.teamId;
+  const [players, events, coach] = await Promise.all([
     fetchRoster(supabase, game.teamId),
     fetchGameEvents(supabase, id),
+    coaching
+      ? Promise.all([loadBaselineGames(supabase, user.id, id), loadCoachSettings(supabase, game.teamId)]).then(
+          ([baselineGames, settings]) => ({ baselineGames, overrides: settings.overrides, teamName: member!.name }),
+        )
+      : Promise.resolve(undefined),
   ]);
 
-  return <Scorer game={game} players={players} initialEvents={events} />;
+  return <Scorer game={game} players={players} initialEvents={events} coach={coach} />;
 }

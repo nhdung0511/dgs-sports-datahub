@@ -26,7 +26,7 @@ async function myEditableTeam() {
   return ctx;
 }
 
-const ROLE_LABEL = { admin: "an admin", scorekeeper: "a scorekeeper", player: "a player (view-only)" } as const;
+const ROLE_LABEL = { admin: "an admin", coach: "a coach", scorekeeper: "a scorekeeper", player: "a player (view-only)" } as const;
 
 export async function createTeam(form: FormData) {
   const { supabase, user } = await requireUser("/team");
@@ -87,7 +87,7 @@ export async function addMember(form: FormData) {
   const { supabase, team } = await myTeam();
   const email = text(form, "email");
   const picked = text(form, "role");
-  const role = picked === "admin" || picked === "player" ? picked : "scorekeeper";
+  const role = picked === "admin" || picked === "coach" || picked === "player" ? picked : "scorekeeper";
   if (!email) done("Enter an email address.", true);
   const { error } = await supabase.rpc("add_team_member_by_email", {
     p_team: team.id,

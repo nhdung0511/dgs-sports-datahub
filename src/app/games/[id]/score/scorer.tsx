@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BoxTable } from "@/components/box-table";
+import { CoachView } from "@/components/coach-view";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { clockNow, formatClock, parseClock } from "@/lib/sports/basketball/clock";
 import { describeEvent } from "@/lib/sports/basketball/describe";
@@ -15,6 +16,8 @@ import type {
 } from "@/lib/sports/basketball/events";
 import { periodLabel } from "@/lib/sports/basketball/period";
 import { emptyLine } from "@/lib/sports/basketball/stats";
+import type { AnalysisGame } from "@/lib/sports/basketball/advanced";
+import { mergeThresholds } from "@/lib/sports/basketball/coach-alerts";
 import { liveEvents, type Game, type GameEvent, type Player } from "@/lib/sports/types";
 import { useScorer, type SyncStatus } from "./use-scorer";
 
@@ -22,6 +25,8 @@ interface Props {
   game: Game<BasketballConfig>;
   players: Player[];
   initialEvents: GameEvent[];
+  /** Set for coaches/admins: adds a Coach tab that works offline from this device's events. */
+  coach?: { baselineGames: AnalysisGame[]; overrides: Record<string, number>; teamName: string };
 }
 
 type PlayerAction = {
@@ -109,7 +114,7 @@ function SyncBadge({ sync }: { sync: SyncStatus }) {
   );
 }
 
-export function Scorer({ game, players, initialEvents }: Props) {
+export function Scorer({ game, players, initialEvents, coach }: Props) {
   const router = useRouter();
   const s = useScorer({
     gameId: game.id,
@@ -144,7 +149,8 @@ export function Scorer({ game, players, initialEvents }: Props) {
   }
   const [selected, setSelected] = useState<string | null>(null);
   const [lineupDraft, setLineupDraft] = useState<string[] | null>(null);
-  const [tab, setTab] = useState<"log" | "box">("log");
+  const [tab, setTab] = useState<"log" | "box" | "coach">("log");
+  const thresholds = useMemo(() => mergeThresholds(game.config, coach?.overrides), [game.config, coach?.overrides]);
   const [toast, setToast] = useState<{ id: string; text: string } | null>(null);
   const [, setTick] = useState(0);
 
@@ -565,7 +571,7 @@ export function Scorer({ game, players, initialEvents }: Props) {
         {/* Log / box score */}
         <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-card">
           <div className="flex gap-1 border-b border-line p-1.5 text-sm">
-            {(["log", "box"] as const).map((t) => (
+            {(coach ? (["log", "box", "coach"] as const) : (["log", "box"] as const)).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -573,7 +579,7 @@ export function Scorer({ game, players, initialEvents }: Props) {
                   tab === t ? "bg-brand text-brand-fg" : "text-muted hover:bg-card-2"
                 }`}
               >
-                {t === "log" ? "Play-by-play" : "Box score"}
+                {t === "log" ? "Play-by-play" : t === "box" ? "Box score" : "Coach"}
               </button>
             ))}
           </div>
@@ -620,6 +626,19 @@ export function Scorer({ game, players, initialEvents }: Props) {
                   </li>
                 ))}
               </ul>
+            ) : tab === "coach" && coach ? (
+              <div className="p-2">
+                <CoachView
+                  config={game.config}
+                  events={s.events as BasketballEvent[]}
+                  players={players}
+                  baselineGames={coach.baselineGames}
+                  thresholds={thresholds}
+                  teamName={coach.teamName}
+                  opponentName={game.opponentName}
+                  mode="panel"
+                />
+              </div>
             ) : (
               <BoxTable players={players} lines={s.box.players} showAll compact />
             )}

@@ -4,11 +4,13 @@ import { btnGhost, btnPrimary, card, input, label } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { loadAnalysisSettings, saveDefaultArchetypes } from "@/lib/db/analysis-settings";
 import { fetchRoster } from "@/lib/db/games";
-import { getMyTeam } from "@/lib/db/teams";
+import { loadCoachSettings } from "@/lib/db/coach";
+import { getMyTeam, isCoach } from "@/lib/db/teams";
+import { defaultThresholds, THRESHOLD_LABELS, type CoachThresholds } from "@/lib/sports/basketball/coach-alerts";
 import { DEFAULT_BENCHMARKS } from "@/lib/sports/basketball/archetypes";
 import { GROUP_LABELS, METRICS, type MetricGroup } from "@/lib/sports/basketball/metrics";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { addArchetype, deleteArchetype, saveArchetype, saveAssignments, saveBenchmarks } from "./actions";
+import { addArchetype, deleteArchetype, saveArchetype, saveAssignments, saveBenchmarks, saveCoachSettings } from "./actions";
 
 export const metadata = { title: "Analysis settings · DGS Sports Datahub" };
 
@@ -39,7 +41,13 @@ export default async function AnalysisSettingsPage({
     await saveDefaultArchetypes(supabase, team.id);
     settings = await loadAnalysisSettings(supabase, team.id);
   }
-  const players = await fetchRoster(supabase, team.id);
+  const coach = isCoach(team.role);
+  const [players, coachSettings] = await Promise.all([
+    fetchRoster(supabase, team.id),
+    coach ? loadCoachSettings(supabase, team.id) : Promise.resolve(null),
+  ]);
+  const hsDefaults = defaultThresholds({ periodCount: 4, periodLengthSec: 480, overtimeLengthSec: 240 });
+  const fibaDefaults = defaultThresholds({ periodCount: 4, periodLengthSec: 600, overtimeLengthSec: 300 });
   const groups = Object.keys(GROUP_LABELS) as MetricGroup[];
   const ro = !isAdmin || settings.needsMigration; // read-only
 
@@ -225,6 +233,50 @@ export default async function AnalysisSettingsPage({
           {!ro && <button className={`${btnPrimary} mt-4`}>Save benchmarks</button>}
         </form>
       </section>
+
+      {/* Coach view alerts */}
+      {coachSettings && (
+        <section id="coach" className={`${card} mt-6 scroll-mt-24 p-5 sm:p-6`}>
+          <h2 className="text-xl font-black">Coach view alerts</h2>
+          <p className="mt-1 text-sm text-muted">
+            When the live coach view raises an alert. Defaults adapt to each game&apos;s format (shown for high school / FIBA); a value
+            you set here applies to every game. Leave a box empty to use the default. Coaches and admins only.
+          </p>
+          {coachSettings.needsMigration && (
+            <p className="mt-3 rounded-xl bg-warn-soft px-4 py-3 text-sm ring-1 ring-warn/50">
+              Run <code className="font-bold">supabase/migrations/0007_coach_role.sql</code> in the Supabase SQL Editor to save these.
+            </p>
+          )}
+          <form action={saveCoachSettings} className="mt-4">
+            <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+              {(Object.keys(THRESHOLD_LABELS) as (keyof CoachThresholds)[]).map((k) => (
+                <div key={k} className="grid grid-cols-[1fr_6rem] items-center gap-2">
+                  <label htmlFor={`t-${k}`} className="text-sm">
+                    <b>{THRESHOLD_LABELS[k].label}</b>
+                    <span className="text-muted">
+                      {" "}
+                      · {THRESHOLD_LABELS[k].unit}, default {hsDefaults[k]}
+                      {fibaDefaults[k] !== hsDefaults[k] ? ` / ${fibaDefaults[k]}` : ""}
+                    </span>
+                  </label>
+                  <input
+                    id={`t-${k}`}
+                    name={`t_${k}`}
+                    type="number"
+                    min={0}
+                    step="any"
+                    defaultValue={coachSettings.overrides[k] ?? ""}
+                    placeholder={String(hsDefaults[k])}
+                    disabled={coachSettings.needsMigration}
+                    className={input}
+                  />
+                </div>
+              ))}
+            </div>
+            {!coachSettings.needsMigration && <button className={`${btnPrimary} mt-4`}>Save alert settings</button>}
+          </form>
+        </section>
+      )}
     </SiteShell>
   );
 }

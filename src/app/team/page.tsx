@@ -59,7 +59,7 @@ export default async function TeamPage({
       <PageTitle
         title={team.name}
         sub={`${active.length} active players · you are ${
-          isAdmin ? "an admin" : editor ? "a scorekeeper" : "a player (view-only)"
+          isAdmin ? "an admin" : team.role === "coach" ? "a coach" : editor ? "a scorekeeper" : "a player (view-only)"
         }`}
       />
       <Notice msg={msg} />
@@ -160,7 +160,7 @@ export default async function TeamPage({
       <section className={`${card} mt-6 p-5 sm:p-6`}>
         <h2 className="text-xl font-black">Members</h2>
         <p className="mt-1 text-sm text-muted">
-          Admins and scorekeepers can create games and keep score. Players can sign in to see the team&apos;s
+          Admins, coaches and scorekeepers can create games and keep score. Coaches and admins also see the live coach view. Players can sign in to see the team&apos;s
           analysis but can&apos;t change anything. Each person needs an account first: create it in Supabase or have
           them sign in once.
         </p>
@@ -178,6 +178,8 @@ export default async function TeamPage({
                       ? "bg-lime-soft ring-1 ring-lime/50"
                       : m.role === "player"
                         ? "bg-card-2 ring-1 ring-line"
+                        : m.role === "coach"
+                          ? "bg-warn-soft ring-1 ring-warn/50"
                         : "bg-cyan-soft ring-1 ring-cyan/40"
                   }`}
                 >
@@ -209,6 +211,7 @@ export default async function TeamPage({
               </label>
               <select id="member-role" name="role" className={input} defaultValue="scorekeeper">
                 <option value="scorekeeper">Scorekeeper</option>
+                <option value="coach">Coach</option>
                 <option value="player">Player (view-only)</option>
                 <option value="admin">Admin</option>
               </select>

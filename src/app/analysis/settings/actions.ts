@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { getMyTeam } from "@/lib/db/teams";
+import { saveCoachThresholds } from "@/lib/db/coach";
+import { getMyTeam, isCoach } from "@/lib/db/teams";
+import { THRESHOLD_LABELS, type CoachThresholds } from "@/lib/sports/basketball/coach-alerts";
 import { metricByKey, METRICS } from "@/lib/sports/basketball/metrics";
 
 const text = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
@@ -119,4 +121,22 @@ export async function saveBenchmarks(form: FormData) {
     if (error) done(error.message, true);
   }
   done("Benchmarks saved.");
+}
+
+/** Coach-view alert thresholds: coaches and admins (blank = use the format's default). */
+export async function saveCoachSettings(form: FormData) {
+  const { supabase, user } = await requireUser("/analysis/settings");
+  const team = await getMyTeam(supabase, user.id);
+  if (!team || !isCoach(team.role)) done("Only coaches and admins can change alert settings.", true);
+  const values: Record<string, number> = {};
+  for (const k of Object.keys(THRESHOLD_LABELS) as (keyof CoachThresholds)[]) {
+    const v = num(form, `t_${k}`);
+    if (v !== null && v >= 0) values[k] = v;
+  }
+  try {
+    await saveCoachThresholds(supabase, team.id, values);
+  } catch (e) {
+    done(e instanceof Error ? e.message : "Couldn't save alert settings.", true);
+  }
+  done("Coach alert settings saved.");
 }

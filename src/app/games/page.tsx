@@ -4,7 +4,7 @@ import { PageTitle, SiteShell } from "@/components/site-shell";
 import { btnAccent } from "@/components/ui";
 import { getSessionUser } from "@/lib/auth";
 import { listGames, loadGamesWithBox } from "@/lib/db/games";
-import { canEdit, getClubTeam, getMyTeam } from "@/lib/db/teams";
+import { isCoach, canEdit, getClubTeam, getMyTeam } from "@/lib/db/teams";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export default async function GamesPage({
@@ -59,6 +59,7 @@ export default async function GamesPage({
               item={g}
               canScore={Boolean(mine && g.game.scorekeeperId === user?.id)}
               canDelete={Boolean(mine && (mine.role === "admin" || g.game.scorekeeperId === user?.id))}
+              canCoach={isCoach(member?.role)}
             />
           ))}
         </ul>

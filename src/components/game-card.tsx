@@ -26,10 +26,13 @@ export function GameCard({
   item,
   canScore,
   canDelete = false,
+  canCoach = false,
 }: {
   item: GameWithBox;
   canScore: boolean;
   canDelete?: boolean;
+  /** Coaches and admins: link to the live coach view / post-game review. */
+  canCoach?: boolean;
 }) {
   const { game, box } = item;
   const { us, opp } = box.score;
@@ -64,6 +67,14 @@ export function GameCard({
           className="rounded-full bg-brand px-3 py-1.5 text-xs font-bold text-brand-fg hover:bg-brand-hover"
         >
           Keep score
+        </Link>
+      )}
+      {canCoach && started && (
+        <Link
+          href={`/games/${game.id}/coach`}
+          className="rounded-full bg-warn-soft px-3 py-1.5 text-xs font-bold ring-1 ring-warn/50 hover:brightness-95"
+        >
+          {game.status === "final" ? "Coach review" : "Coach view"}
         </Link>
       )}
       {canDelete && <DeleteGameButton id={game.id} opponent={game.opponentName} />}

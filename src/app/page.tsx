@@ -6,7 +6,7 @@ import { btnPrimary, card, input, label } from "@/components/ui";
 import { getSessionUser } from "@/lib/auth";
 import { fetchRoster, listGames, loadGamesWithBox, type GameWithBox } from "@/lib/db/games";
 import { listNewsPosts, resultNews, type NewsItem } from "@/lib/db/news";
-import { canEdit, getClubTeam, getMyTeam, type Role } from "@/lib/db/teams";
+import { canEdit, isCoach, getClubTeam, getMyTeam, type Role } from "@/lib/db/teams";
 import type { Team } from "@/lib/sports/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createNewsPost, deleteNewsPost, sendContactMessage } from "./home-actions";
@@ -121,7 +121,7 @@ export default async function Home({ searchParams }: { searchParams: Search }) {
               ) : (
                 <ul className="grid gap-3 md:grid-cols-2">
                   {recent.map((g) => (
-                    <GameCard key={g.game.id} item={g} canScore={Boolean(isEditor && g.game.scorekeeperId === userId)} />
+                    <GameCard key={g.game.id} item={g} canScore={Boolean(isEditor && g.game.scorekeeperId === userId)} canCoach={isCoach(myTeam?.role)} />
                   ))}
                 </ul>
               )}

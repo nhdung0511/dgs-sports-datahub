@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { BoxTable } from "@/components/box-table";
 import { CsvButton } from "@/components/csv-button";
 import { formatDate, StatusPill } from "@/components/game-card";
 import { card } from "@/components/ui";
 import { safeFilename } from "@/lib/csv";
-import { fromRow, type GameEventRow } from "@/lib/db/events";
 import type { BasketballGame } from "@/lib/db/games";
 import { boxScoreRows, playByPlayRows } from "@/lib/sports/basketball/columns";
 import { formatClock } from "@/lib/sports/basketball/clock";
@@ -15,8 +14,8 @@ import type { BasketballEvent } from "@/lib/sports/basketball/events";
 import { periodLabel, periodState } from "@/lib/sports/basketball/period";
 import { teamLine } from "@/lib/sports/basketball/season";
 import { computeBoxScore } from "@/lib/sports/basketball/stats";
-import { liveEvents, type GameEvent, type GameStatus, type Player } from "@/lib/sports/types";
-import { createClient } from "@/lib/supabase/client";
+import { liveEvents, type GameEvent, type Player } from "@/lib/sports/types";
+import { useLiveEvents } from "@/lib/use-live-events";
 
 interface Props {
   game: BasketballGame;
@@ -26,39 +25,8 @@ interface Props {
 }
 
 export function LiveGame({ game, teamName, players, initialEvents }: Props) {
-  const [events, setEvents] = useState(initialEvents as BasketballEvent[]);
-  const [status, setStatus] = useState<GameStatus>(game.status);
-  const [connected, setConnected] = useState(false);
+  const { events, status, connected } = useLiveEvents<BasketballEvent>(game.id, initialEvents, game.status);
   const [tab, setTab] = useState<"box" | "pbp">("box");
-
-  // Realtime: every insert/update to this game's events (and status changes) streams in.
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`game:${game.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "game_events", filter: `game_id=eq.${game.id}` },
-        (payload) => {
-          if (!payload.new || !("id" in payload.new)) return;
-          const ev = fromRow(payload.new as GameEventRow) as BasketballEvent;
-          setEvents((prev) => {
-            const next = prev.filter((e) => e.id !== ev.id);
-            next.push(ev);
-            return next.sort((a, b) => a.seq - b.seq);
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "games", filter: `id=eq.${game.id}` },
-        (payload) => setStatus((payload.new as { status: GameStatus }).status),
-      )
-      .subscribe((s) => setConnected(s === "SUBSCRIBED"));
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [game.id]);
 
   const box = useMemo(() => computeBoxScore(events), [events]);
   const live = useMemo(() => liveEvents(events), [events]);
