@@ -13,6 +13,15 @@ export function PostMeta({ post, now }: { post: PostListItem; now: Date }) {
 export function LeadStory({ post, now }: { post: PostListItem; now: Date }) {
   return (
     <article className="pb-6 text-center min-[900px]:pb-2">
+      {/* Posts have no cover-image field yet, so the club mascot is pinned to whatever story leads. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- static asset in /public */}
+      <img
+        src="/mascot-otter.png"
+        alt="The club mascot, an otter with a sprout on its head, arms out wide"
+        width={420}
+        height={400}
+        className="mx-auto mb-5 h-auto w-full max-w-[420px]"
+      />
       <p className="label">{categoryLabel(post.category)}</p>
       <h2 className="h-lead hl mt-4">
         <Link href={`/news/${post.slug}`}>{keepScores(post.title)}</Link>
