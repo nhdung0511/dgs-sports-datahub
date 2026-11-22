@@ -12,7 +12,7 @@ export function PostMeta({ post, now }: { post: PostListItem; now: Date }) {
 
 export function LeadStory({ post, now }: { post: PostListItem; now: Date }) {
   return (
-    <article className="pb-6">
+    <article className="pb-6 text-center min-[900px]:pb-2">
       <p className="label">{categoryLabel(post.category)}</p>
       <h2 className="h-lead hl mt-4">
         <Link href={`/news/${post.slug}`}>{keepScores(post.title)}</Link>
@@ -23,9 +23,9 @@ export function LeadStory({ post, now }: { post: PostListItem; now: Date }) {
   );
 }
 
-export function PostRow({ post, now }: { post: PostListItem; now: Date }) {
+export function PostRow({ post, now, first = false }: { post: PostListItem; now: Date; first?: boolean }) {
   return (
-    <article className="rule border-t py-5">
+    <article className={`rule py-5 ${first ? "pt-0" : "border-t"}`}>
       <p className="label">{categoryLabel(post.category)}</p>
       <h3 className="h-row hl mt-3">
         <Link href={`/news/${post.slug}`}>{keepScores(post.title)}</Link>

@@ -122,3 +122,32 @@
 .news .prose table { border-collapse: collapse; font: 400 15px/1.4 var(--sans); width: 100%; display: block; overflow-x: auto; }
 .news .prose th, .news .prose td { border-bottom: 1px solid var(--news-rule); padding: 8px 12px 8px 0; text-align: left; font-variant-numeric: tabular-nums; }
 .news .prose th { font-weight: 700; }
+
+/* Front page (NYT-inspired structure, our paper/ink/accent tokens). */
+.news .masthead { padding-top: 4px; }
+.news .wordmark { font: 700 44px/1 var(--serif); letter-spacing: -0.02em; font-variation-settings: "opsz" 72; text-align: center; padding: 18px 0 10px; text-wrap: balance; }
+.news .wordmark a:hover { color: inherit; }
+@media (min-width: 640px) { .news .wordmark { font-size: 68px; padding: 26px 0 14px; } }
+/* Heavy-over-light double rule under the masthead, like a printed front page. */
+.news .section-nav { margin-top: 20px; border-top: 3px double var(--news-ink); border-bottom: 1px solid var(--news-ink); }
+.news .section-nav .tab { padding: 10px 0; min-height: 44px; display: inline-flex; align-items: center; }
+.news .section-head { font: 700 11px/1 var(--sans); letter-spacing: 0.09em; text-transform: uppercase; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--news-rule); }
+
+.news .front { display: grid; gap: 0; padding-top: 28px; }
+.news .front > section, .news .front > aside { padding-bottom: 8px; }
+.news .front-left, .news .front-right { border-top: 1px solid var(--news-rule); margin-top: 24px; padding-top: 24px; }
+@media (min-width: 900px) {
+  .news .front { grid-template-columns: 1fr 1.7fr 1fr; grid-template-areas: "left lead right"; }
+  .news .front-lead { grid-area: lead; padding: 0 28px; border-left: 1px solid var(--news-rule); border-right: 1px solid var(--news-rule); }
+  .news .front-left { grid-area: left; padding: 0 28px 0 0; border: 0; margin: 0; }
+  .news .front-right { grid-area: right; padding: 0 0 0 28px; border: 0; margin: 0; }
+  /* Lone lead: no side columns, so drop the rules and centre it. */
+  .news .front-lead:only-child { grid-column: 1 / -1; border: 0; max-width: 760px; margin: 0 auto; }
+  .news .h-lead { font-size: 44px; }
+  .news .front-left .h-row { font-size: 20px; }
+}
+.news .more { margin-top: 32px; border-top: 3px double var(--news-ink); padding-top: 20px; }
+.news .more-grid { display: grid; gap: 0 28px; }
+@media (min-width: 640px) { .news .more-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px) { .news .more-grid { grid-template-columns: repeat(3, 1fr); } .news .more-grid > article { border-top: 1px solid var(--news-rule); padding-top: 20px; } }
+@media (max-width: 899px) { .news .more-grid > article:not(:first-child) { border-top: 1px solid var(--news-rule); padding-top: 20px; } }

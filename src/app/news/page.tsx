@@ -29,21 +29,31 @@ export default async function NewsPage({ searchParams }: { searchParams: Search 
   ]);
   const queued = member?.role === "admin" ? (await listReviewQueue(supabase, member.id)).length : 0;
   const now = new Date();
+  // Front-page split: lead in the centre, a text column either side, the overflow in a grid below.
   const [lead, ...rest] = posts;
+  const leftCol = rest.slice(0, 3);
+  const rightCol = rest.slice(3, 8);
+  const more = rest.slice(8);
+  const dateline = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   return (
     <SiteShell bare>
       <Paper>
-        <header className="flex flex-wrap items-end justify-between gap-x-8">
-          <div>
-            <h1 className="h-page">News</h1>
-            <p className="sans muted mt-3 text-[15px]">Recaps, analysis and news from the DGS Sports Data Analytics Club.</p>
+        <header className="masthead">
+          <div className="sans muted flex flex-wrap items-center justify-between gap-x-6 text-[13px]">
+            <time dateTime={now.toISOString()} suppressHydrationWarning>
+              {dateline}
+            </time>
+            {member ? <NewsToolbar isAdmin={member.role === "admin"} queued={queued} /> : <span>DGS Sports Data Analytics Club</span>}
           </div>
-          {member && <NewsToolbar isAdmin={member.role === "admin"} queued={queued} />}
+          <h1 className="wordmark">
+            <Link href="/news">The DGS Sports News</Link>
+          </h1>
+          <p className="sans muted text-center text-[13px] italic">Recaps, analysis and news from the DGS Sports Data Analytics Club.</p>
         </header>
 
-        <nav aria-label="Categories" className="rule mt-6 border-t">
-          <div className="tabs">
+        <nav aria-label="Categories" className="section-nav">
+          <div className="tabs justify-center">
             {[{ value: undefined, label: "All" }, ...CATEGORIES].map((c) => (
               <Link key={c.label} href={href(c.value)} className="tab" aria-current={c.value === category ? "page" : undefined}>
                 {c.label}
@@ -51,10 +61,9 @@ export default async function NewsPage({ searchParams }: { searchParams: Search 
             ))}
           </div>
         </nav>
-        <div className="rule border-t" />
 
         {!isSupabaseConfigured || !lead ? (
-          <div className="py-12">
+          <div className="py-12 text-center">
             <p className="text-xl">
               {page > 1 ? "No older posts." : category ? `No ${categoryLabel(category).toLowerCase()} posts yet.` : "Nothing published yet."}
             </p>
@@ -71,24 +80,45 @@ export default async function NewsPage({ searchParams }: { searchParams: Search 
             </p>
           </div>
         ) : (
-          <div className="grid gap-12 pt-8 min-[900px]:grid-cols-[2fr_1fr] min-[900px]:gap-0">
-            <div className="min-[900px]:pr-12">
-              <LeadStory post={lead} now={now} />
-              {rest.map((p) => (
-                <PostRow key={p.id} post={p} now={now} />
-              ))}
+          <>
+            <div className="front">
+              <section aria-label="Top story" className="front-lead">
+                <LeadStory post={lead} now={now} />
+              </section>
+              {leftCol.length > 0 && (
+                <section aria-label="More stories" className="front-left">
+                  {leftCol.map((p, i) => (
+                    <PostRow key={p.id} post={p} now={now} first={i === 0} />
+                  ))}
+                </section>
+              )}
+              {rightCol.length > 0 && (
+                <aside aria-labelledby="latest" className="front-right">
+                  <h2 id="latest" className="section-head">
+                    Latest
+                  </h2>
+                  <ul>
+                    {rightCol.map((p) => (
+                      <HeadlineRow key={p.id} post={p} now={now} />
+                    ))}
+                  </ul>
+                </aside>
+              )}
             </div>
-            <aside aria-labelledby="latest" className="rule hidden min-[900px]:block min-[900px]:border-l min-[900px]:pl-12">
-              <h2 id="latest" className="label mb-4">
-                Latest
-              </h2>
-              <ul>
-                {posts.slice(0, 6).map((p) => (
-                  <HeadlineRow key={p.id} post={p} now={now} />
-                ))}
-              </ul>
-            </aside>
-          </div>
+
+            {more.length > 0 && (
+              <section aria-labelledby="more" className="more">
+                <h2 id="more" className="section-head">
+                  More news
+                </h2>
+                <div className="more-grid">
+                  {more.map((p) => (
+                    <PostRow key={p.id} post={p} now={now} first />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
 
         {(page > 1 || hasMore) && (
