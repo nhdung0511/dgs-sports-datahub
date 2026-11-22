@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Notice, PageTitle, SiteShell } from "@/components/site-shell";
 import { btnAccent, btnGhost, btnPrimary, card, input, label } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
@@ -72,7 +73,10 @@ export default async function TeamPage({
             {active.length === 0 && <li className="py-4 text-sm text-muted">No players yet.</li>}
             {active.map((p) => (
               <li key={p.id} className="py-2.5">
-                <b className="inline-block w-12">#{p.jersey ?? "–"}</b> {p.name}
+                <b className="inline-block w-12">#{p.jersey ?? "–"}</b>{" "}
+                <Link href={`/players/${p.id}`} className="hover:text-cyan hover:underline">
+                  {p.name}
+                </Link>
               </li>
             ))}
           </ul>
@@ -124,6 +128,9 @@ export default async function TeamPage({
                 />
                 <button className={btnGhost}>Save</button>
               </form>
+              <Link href={`/players/${p.id}`} className={btnGhost}>
+                Profile
+              </Link>
               <form action={setPlayerActive}>
                 <input type="hidden" name="id" value={p.id} />
                 <input type="hidden" name="active" value="false" />
@@ -142,7 +149,10 @@ export default async function TeamPage({
               {inactive.map((p) => (
                 <li key={p.id} className="flex items-center justify-between py-2 text-sm">
                   <span>
-                    <b>#{p.jersey ?? "–"}</b> {p.name}
+                    <b>#{p.jersey ?? "–"}</b>{" "}
+                    <Link href={`/players/${p.id}`} className="hover:text-cyan hover:underline">
+                      {p.name}
+                    </Link>
                   </span>
                   <form action={setPlayerActive}>
                     <input type="hidden" name="id" value={p.id} />

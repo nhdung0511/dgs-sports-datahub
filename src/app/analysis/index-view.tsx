@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CsvButton } from "@/components/csv-button";
 import { UNIT_LABELS } from "@/lib/sports/basketball/advanced";
@@ -153,7 +154,9 @@ export function IndexView({ rows, unit, pcts, roles }: ViewProps) {
             {sorted.map((r) => (
               <tr key={r.player.id} className={r.eligible ? "" : "opacity-45"}>
                 <th scope="row" className="whitespace-nowrap rounded-l-lg px-3 py-2 text-left font-bold">
-                  {shortName(r.player)}
+                  <Link href={`/players/${r.player.id}`} className="hover:text-cyan hover:underline" title="Open player profile">
+                    {shortName(r.player)}
+                  </Link>
                   {!r.eligible && <span className="ml-1.5 text-xs font-normal text-muted">(low min)</span>}
                 </th>
                 {ratingMode === "archetype" && (
